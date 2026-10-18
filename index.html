@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Uneaten</title>
+<meta name="description" content="Snap your leftovers and get a nudge before they go off.">
+<meta name="theme-color" content="#f6f7f5">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<!-- iOS ignores SVG here; without a PNG the home screen gets a page screenshot. -->
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Uneaten">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <h1>My fridge</h1>
+</header>
+
+<main>
+  <div id="alert" class="banner banner-bad" hidden></div>
+
+  <div id="offer" class="banner banner-offer" hidden>
+    <p id="offer-text"></p>
+    <div class="banner-actions">
+      <button id="offer-yes" type="button" class="btn btn-primary">Turn on</button>
+      <button id="offer-no" type="button" class="btn btn-quiet">Not now</button>
+    </div>
+  </div>
+
+  <ul id="list" aria-live="polite"></ul>
+
+  <div id="empty" hidden>
+    <p class="empty-big">Your fridge is empty</p>
+    <p>Tap <strong>+ Add</strong> to snap your leftovers.</p>
+  </div>
+</main>
+
+<button id="add" type="button" aria-label="Add leftovers">
+  <span aria-hidden="true">+</span> Add
+</button>
+
+<!-- Opens the rear camera on phones; a file picker elsewhere. -->
+<input id="camera" type="file" accept="image/*" capture="environment" hidden>
+
+<dialog id="add-sheet" class="sheet" aria-labelledby="add-title">
+  <form method="dialog" id="add-form">
+    <h2 id="add-title">New leftovers</h2>
+    <button type="button" id="add-photo" class="photo-slot">
+      <img id="add-preview" alt="" hidden>
+      <span id="add-photo-hint">Tap to take a photo</span>
+    </button>
+    <label class="field">
+      <span>What is it? <em>(optional)</em></span>
+      <input id="add-note" type="text" maxlength="60" placeholder="Pasta from Sunday" autocomplete="off" enterkeyhint="done">
+    </label>
+    <fieldset class="field">
+      <legend>Eat within</legend>
+      <div class="chips" id="add-chips"></div>
+    </fieldset>
+    <div class="sheet-actions">
+      <button type="submit" class="btn btn-primary btn-big">Save</button>
+      <button type="button" class="btn btn-quiet" data-close>Cancel</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="item-sheet" class="sheet" aria-labelledby="item-note">
+  <img id="item-photo" alt="">
+  <h2 id="item-note"></h2>
+  <p id="item-when"></p>
+  <div id="item-date" hidden>
+    <fieldset class="field">
+      <legend>New date</legend>
+      <div class="chips" id="item-chips"></div>
+    </fieldset>
+  </div>
+  <div class="sheet-actions">
+    <button type="button" id="item-done" class="btn btn-primary btn-big">Eaten or thrown away</button>
+    <button type="button" id="item-change" class="btn btn-secondary">Change date</button>
+    <button type="button" class="btn btn-quiet" data-close>Close</button>
+  </div>
+</dialog>
+
+<dialog id="ios-sheet" class="sheet" aria-labelledby="ios-title">
+  <h2 id="ios-title">Get reminders on iPhone</h2>
+  <ol class="steps">
+    <li>Tap the <strong>Share</strong> button
+      <svg viewBox="0 0 24 24" aria-hidden="true" class="inline-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 8l5-5 5 5M5 13v7h14v-7"/></svg>
+      at the bottom of Safari.</li>
+    <li>Choose <strong>Add to Home Screen</strong>.</li>
+    <li>Open <strong>Uneaten</strong> from your Home Screen and tap <strong>Turn on</strong>.</li>
+  </ol>
+  <div class="sheet-actions">
+    <button type="button" class="btn btn-primary btn-big" data-close>OK</button>
+  </div>
+</dialog>
+
+<div id="toast" role="status" hidden>
+  <span id="toast-text"></span>
+  <button id="toast-undo" type="button">Undo</button>
+</div>
+
+<script src="config.js"></script>
+<script src="dates.js"></script>
+<script src="db.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
