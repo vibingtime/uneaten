@@ -13,7 +13,11 @@ a reminder pops up at 9:00 when something is due.
   picture → say how long it usually keeps (*a few days*, *a few weeks* or
   *months*) and which shelf it goes on. Choose your kind, then tap **Edit this
   kind** to rename or delete it. Deleting a kind turns its items into Leftovers.
-- **Fridge:** the home screen is an open fridge with a top, middle and bottom
+- **Door:** the fridge starts closed, with a note saying how much is inside.
+  Tap the door: a little chime plays and it swings open. **Close door** at the
+  bottom of the open door shuts it. Saving a new dish opens it to show where it
+  went.
+- **Fridge:** inside is an open fridge with a top, middle and bottom
   shelf, a fruit & veg drawer and a door rack. Every item shows a plain-words badge, such as *3 days*,
   *Tomorrow*, *Today* or *Throw away*. Tap the light at the top to switch it
   on and off (it starts off).
