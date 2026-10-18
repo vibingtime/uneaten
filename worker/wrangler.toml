@@ -1,0 +1,20 @@
+name = "uneaten-reminders"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+# Hourly; each phone is reminded when it is 9:00 in its own timezone.
+[triggers]
+crons = ["0 * * * *"]
+
+# Create with: npx wrangler kv namespace create SUBS  (then paste the id here)
+[[kv_namespaces]]
+binding = "SUBS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[vars]
+# The site that may call /sync, e.g. https://you.github.io (no trailing slash).
+ALLOWED_ORIGIN = "https://vibingtime.github.io"
+VAPID_SUBJECT = "mailto:you@example.com"
+# Paste the public key printed by gen-vapid.mjs (also goes in ../config.js).
+VAPID_PUBLIC_KEY = ""
+# VAPID_PRIVATE_JWK is a secret: npx wrangler secret put VAPID_PRIVATE_JWK
