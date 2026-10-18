@@ -15,9 +15,11 @@ a reminder pops up at 9:00 when something is due.
   kind** to rename or delete it. Deleting a kind turns its items into Leftovers.
 - **Door:** the fridge starts closed, and closes again whenever you come back
   to the app, with a note saying how much is inside.
-  Tap the door: a little chime plays and it swings open. **🔔 Door sound** on
-  the closed door lets you pick the built-in chime, a sound file from your own
-  phone (kept only on the phone, never uploaded), or no sound. **Close door** at the
+  Tap the door: a little chime plays and it swings open.
+- **Settings (☰, top right):** *Door sound*: the built-in chime, a sound file
+  from your own phone (kept only on the phone, never uploaded), or no sound.
+  *Door color*: 8 ready-made colors or any color from the color picker; the
+  door and the fridge's frame follow it. **Close door** at the
   bottom of the open door shuts it. Saving a new dish opens it to show where it
   went.
 - **Fridge:** inside is an open fridge with a top, middle and bottom

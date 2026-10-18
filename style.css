@@ -16,6 +16,9 @@
   --radius: 20px;
   --tap: 56px;
   --bar: 104px; /* height of the bottom strip holding + Add */
+  --door: #dde4e7; /* the fridge's color, chosen in Settings */
+  --door-light: color-mix(in srgb, var(--door) 72%, white);
+  --door-dark: color-mix(in srgb, var(--door) 86%, black);
   /* fridge */
   --steel-1: #f4f7f8;
   --steel-2: #d9e1e5;
@@ -108,8 +111,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
   border-radius: 26px;
   padding: 0;
   background:
-    linear-gradient(100deg, rgb(255 255 255 / 0.55), transparent 35%),
-    linear-gradient(180deg, #eef2f4, #d3dbdf);
+    linear-gradient(100deg, rgb(255 255 255 / 0.45), transparent 35%),
+    linear-gradient(180deg, var(--door-light), var(--door-dark));
+  background-color: var(--door);
   box-shadow: 0 0 0 1px var(--steel-edge), inset 0 -6px 14px rgb(0 0 0 / 0.08), 0 10px 30px rgb(0 0 0 / 0.14);
   transform-origin: right center;
   transition: transform 0.6s cubic-bezier(0.3, 0.7, 0.3, 1), opacity 0.3s ease 0.35s;
@@ -174,7 +178,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   flex-direction: column;
   padding: 12px 10px 10px;
   border-radius: 26px;
-  border: 10px solid var(--steel-2);
+  border: 10px solid var(--door-dark);
   background:
     radial-gradient(120% 40% at 50% 0%, rgb(255 255 255 / 0.95), transparent 70%),
     linear-gradient(180deg, var(--inside-1), var(--inside-2));
@@ -277,7 +281,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   gap: 8px;
   border-radius: 22px 26px 26px 22px;
   padding: 12px 8px;
-  background: linear-gradient(90deg, var(--steel-2), var(--steel-1) 30%, var(--steel-2));
+  background: linear-gradient(90deg, var(--door-dark), var(--door-light) 30%, var(--door-dark));
+  background-color: var(--door);
   box-shadow: 0 0 0 1px var(--steel-edge), 0 10px 30px rgb(0 0 0 / 0.12);
 }
 .door::before { /* handle */
@@ -715,28 +720,84 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
 
 /* ---------- door sound ---------- */
 
-/* Sits on the closed door, under the note; hidden once the door is open. */
-.sound-btn {
-  position: absolute;
-  left: 50%;
-  bottom: 18px;
-  z-index: 4;
-  min-height: 48px;
-  padding: 0 18px;
-  transform: translateX(-50%);
-  border: 0;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.8);
-  color: #2b3a41;
-  font-size: 16px;
-  font-weight: 700;
-  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
-  transition: opacity 0.2s;
-}
-#fridge:not(.closed) .sound-btn { opacity: 0; pointer-events: none; }
 .sheet-help { margin: 0 0 14px; color: var(--muted); }
 .sheet-help.small { font-size: 15px; margin-top: 14px; }
 .sound-choices { flex-direction: column; align-items: stretch; }
 .sound-choices .chip { text-align: left; }
 .sound-file { margin: 12px 0 8px; font-weight: 700; overflow-wrap: anywhere; }
 .sound-file[hidden], #sound-pick[hidden], #sound-play[hidden] { display: none; }
+
+/* ---------- settings ---------- */
+
+header { position: relative; }
+.settings-btn {
+  position: absolute;
+  top: 16px;
+  right: 0;
+  z-index: 2;
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+.settings-btn svg { width: 28px; height: 28px; }
+/* Keep the fridge name clear of the button. */
+.fridge-title, #fridge-rename { margin-right: 64px; }
+
+.setting { padding: 16px 0; border-top: 1px solid var(--line); }
+.setting h3 { margin: 0 0 6px; font-size: 20px; }
+.row-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+
+.color-row { display: flex; gap: 16px; align-items: center; margin-top: 8px; }
+.door-preview {
+  position: relative;
+  flex: none;
+  width: 64px;
+  height: 104px;
+  border-radius: 12px;
+  background:
+    linear-gradient(100deg, rgb(255 255 255 / 0.45), transparent 35%),
+    linear-gradient(180deg, var(--door-light), var(--door-dark));
+  background-color: var(--door);
+  box-shadow: 0 0 0 1px var(--steel-edge), 0 4px 10px rgb(0 0 0 / 0.15);
+}
+.door-preview span { /* handle */
+  position: absolute;
+  left: 8px;
+  top: 30%;
+  width: 6px;
+  height: 26%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8f9ca2, #f2f5f6 45%, #9aa8ae);
+}
+.swatches { display: grid; grid-template-columns: repeat(4, 48px); gap: 10px; }
+.swatch {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgb(0 0 0 / 0.15);
+  padding: 0;
+}
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--card), 0 0 0 6px var(--brand); }
+.color-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  min-height: 56px;
+  font-weight: 700;
+}
+.color-pick input {
+  width: 72px;
+  height: 52px;
+  padding: 2px;
+  border: 2px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
