@@ -14,6 +14,7 @@ const KEEPS = {
 const BUILT_IN = {
   leftovers: { id: 'leftovers', label: 'Leftovers', icon: '🍲', keeps: 'days', shelf: 'middle', example: 'Biryani' },
   sauces: { id: 'sauces', label: 'Dips & sauces', icon: '🥫', keeps: 'weeks', shelf: 'door', example: 'Garlic mayo' },
+  fruitveg: { id: 'fruitveg', label: 'Fruit & veg', icon: '🥕', keeps: 'days', shelf: 'drawer', example: 'Spinach' },
 };
 const ICONS = ['🧀', '🥛', '🥚', '🥗', '🍎', '🥕', '🍰', '🍕', '🍗', '🐟', '🍚', '🧃', '🍫', '🥣', '🍲', '🥫'];
 
@@ -23,7 +24,8 @@ const KIND_MAX = 20;
 const segmenter = globalThis.Intl?.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
 const chars = (text) => (segmenter ? [...segmenter.segment(text)].map((x) => x.segment) : [...text]);
 const clip = (text, max) => chars(text).slice(0, max).join('');
-const SHELVES = { top: 'Top shelf', middle: 'Middle shelf', bottom: 'Bottom shelf', door: 'Door' };
+const SHELVES = { top: 'Top shelf', middle: 'Middle shelf', bottom: 'Bottom shelf', drawer: 'Drawer', door: 'Door' };
+const PLACES = { top: 'the top shelf', middle: 'the middle shelf', bottom: 'the bottom shelf', drawer: 'the drawer', door: 'the door' };
 
 let items = [];
 let kinds = { ...BUILT_IN };
@@ -244,7 +246,7 @@ const moveTo = safely(async (item, shelf) => {
   await DB.put(item);
   remember('dragHint', '1');
   render();
-  toast(`Moved to ${SHELVES[shelf].toLowerCase().replace('door', 'the door')}`, async () => {
+  toast(`Moved to ${PLACES[shelf]}`, async () => {
     item.shelf = from;
     await DB.put(item);
     render();
@@ -582,6 +584,20 @@ $('toast-undo').addEventListener('click', () => {
   clearTimeout(toastTimer);
   undoFn?.();
 });
+
+// ---------- fridge light ----------
+
+// Just for fun: tap the light to switch it off and on. Remembered per phone.
+function setLight(on) {
+  $('fridge').classList.toggle('light-off', !on);
+  $('light').setAttribute('aria-pressed', String(on));
+}
+$('light').addEventListener('click', () => {
+  const on = $('light').getAttribute('aria-pressed') !== 'true';
+  setLight(on);
+  remember('light', on ? 'on' : 'off');
+});
+setLight(recall('light') !== 'off');
 
 // ---------- reminders ----------
 
