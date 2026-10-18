@@ -1,7 +1,7 @@
 // Cache-first app shell plus the daily reminder. Everything here is static, so
 // a plain cache-first strategy is correct; bump VERSION whenever any cached
 // file changes and the new service worker will drop the old cache on activate.
-const VERSION = 'v12';
+const VERSION = 'v13';
 const ASSETS = [
   './',
   'index.html',

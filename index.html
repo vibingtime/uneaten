@@ -138,7 +138,16 @@
 </dialog>
 
 <dialog id="item-sheet" class="sheet" aria-labelledby="item-note">
-  <img id="item-photo" alt="">
+  <!-- The dish's photo, which can be added, changed or removed here. -->
+  <div class="item-photo">
+    <img id="item-photo" alt="" hidden>
+    <button type="button" id="item-photo-change" class="photo-change" hidden>Change photo</button>
+    <div id="item-photo-pick" class="photo-buttons item-photo-pick" hidden>
+      <button type="button" id="item-pick-camera" class="photo-btn"><span aria-hidden="true">📷</span> Take photo</button>
+      <button type="button" id="item-pick-gallery" class="photo-btn"><span aria-hidden="true">🖼️</span> Choose from gallery</button>
+      <button type="button" id="item-photo-remove" class="link-btn" hidden>Remove photo</button>
+    </div>
+  </div>
   <!-- Tap the name to rename the dish. -->
   <h2 class="item-title">
     <button type="button" id="item-name" class="name-btn">

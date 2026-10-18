@@ -324,20 +324,30 @@ $('add').addEventListener('click', () => {
   $('add-sheet').showModal();
 });
 
-$('pick-camera').addEventListener('click', () => $('camera').click());
-$('pick-gallery').addEventListener('click', () => $('gallery').click());
+// The camera and gallery pickers are shared by the add sheet and the item
+// screen; `photoTarget` says who gets the picture.
+let photoTarget = null;
+function pickPhoto(input, onPhoto) {
+  photoTarget = onPhoto;
+  input.click();
+}
+
+$('pick-camera').addEventListener('click', () => pickPhoto($('camera'), setPhoto));
+$('pick-gallery').addEventListener('click', () => pickPhoto($('gallery'), setPhoto));
 $('photo-change').addEventListener('click', () => setPhoto(null));
 
 for (const input of [$('camera'), $('gallery')]) {
   input.addEventListener('change', async () => {
     const file = input.files[0];
     input.value = '';
-    if (!file) return;
+    if (!file || !photoTarget) return;
+    let blob;
     try {
-      setPhoto(await shrink(file));
+      blob = await shrink(file);
     } catch {
-      toast('That picture could not be opened. Try another one.');
+      return toast('That picture could not be opened. Try another one.');
     }
+    await photoTarget(blob);
   });
 }
 
@@ -498,9 +508,7 @@ let current = null;
 
 function openItem(item) {
   current = item;
-  const photo = $('item-photo');
-  photo.hidden = !item.photo;
-  if (item.photo) photo.src = objectUrl(item.photo);
+  showItemPhoto(item);
   showName(item);
   stopRename();
   showWhen(item);
@@ -508,6 +516,42 @@ function openItem(item) {
   $('item-move').hidden = true;
   $('item-sheet').showModal();
 }
+
+// ---------- the dish's photo ----------
+
+// Kept apart from the shelf thumbnails' URLs, which render() replaces.
+let itemPhotoUrl = null;
+
+function showItemPhoto(item, picking = false) {
+  if (itemPhotoUrl) URL.revokeObjectURL(itemPhotoUrl);
+  itemPhotoUrl = item.photo ? URL.createObjectURL(item.photo) : null;
+  $('item-photo').hidden = !item.photo;
+  $('item-photo').src = itemPhotoUrl ?? '';
+  // No photo: offer the two buttons straight away. A photo: "Change photo".
+  $('item-photo-pick').hidden = Boolean(item.photo) && !picking;
+  $('item-photo-change').hidden = !item.photo || picking;
+  $('item-photo-remove').hidden = !item.photo;
+}
+
+const setItemPhoto = safely(async (photo) => {
+  const item = current;
+  const before = item.photo;
+  item.photo = photo;
+  await DB.put(item);
+  if (current === item) showItemPhoto(item);
+  render();
+  toast(photo ? (before ? 'Photo changed' : 'Photo added') : 'Photo removed', async () => {
+    item.photo = before;
+    await DB.put(item);
+    if (current === item && $('item-sheet').open) showItemPhoto(item);
+    render();
+  });
+});
+
+$('item-photo-change').addEventListener('click', () => showItemPhoto(current, true));
+$('item-pick-camera').addEventListener('click', () => pickPhoto($('camera'), setItemPhoto));
+$('item-pick-gallery').addEventListener('click', () => pickPhoto($('gallery'), setItemPhoto));
+$('item-photo-remove').addEventListener('click', () => setItemPhoto(null));
 
 function showName(item) {
   $('item-note').textContent = item.note || cat(item).label;
@@ -647,6 +691,14 @@ $('item-done').addEventListener('click', safely(async () => {
 for (const btn of document.querySelectorAll('[data-close]')) {
   btn.addEventListener('click', () => btn.closest('dialog').close());
 }
+// A message shown inside a sheet moves back to the page when the sheet closes,
+// so it stays visible (and Undo stays tappable).
+for (const d of document.querySelectorAll('dialog')) {
+  d.addEventListener('close', () => {
+    if ($('toast').parentElement === d) document.body.append($('toast'));
+  });
+}
+
 // Tapping the dimmed backdrop closes a sheet, as people expect. A tap on the
 // sheet's own padding also reports the dialog as its target, so check the
 // tap really landed outside the sheet.
@@ -662,6 +714,11 @@ for (const d of document.querySelectorAll('dialog')) {
 let toastTimer;
 let undoFn;
 function toast(msg, undo) {
+  // An open sheet blocks everything behind it, so show the message inside it
+  // to keep Undo tappable.
+  const host = [...document.querySelectorAll('dialog')].find((d) => d.open) ?? document.body;
+  if ($('toast').parentElement !== host) host.append($('toast'));
+  $('toast').classList.toggle('in-sheet', host !== document.body);
   $('toast-text').textContent = msg;
   undoFn = undo;
   $('toast-undo').hidden = !undo;
