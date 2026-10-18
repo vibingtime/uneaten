@@ -56,7 +56,13 @@
 
   <!-- An open fridge: shelves inside, racks on the door. Racks are filled by
        app.js from each item's `shelf`. -->
-  <section id="fridge" aria-label="Fridge">
+  <section id="fridge" class="closed" aria-label="Fridge">
+    <!-- The closed door covers everything; tapping it plays a chime and swings
+         it open on its right-hand hinge. -->
+    <button type="button" id="fridge-door" class="closed-door">
+      <span class="door-grip" aria-hidden="true"></span>
+      <span class="magnet"><span id="door-count"></span><small>Tap to open</small></span>
+    </button>
     <div class="cabinet">
       <button type="button" id="light" class="light" aria-label="Fridge light" aria-pressed="false"><span></span></button>
       <div class="rack shelf" data-shelf="top"><h2 class="rack-label">Top shelf</h2><ul class="rack-items"></ul></div>
@@ -66,6 +72,7 @@
     </div>
     <div class="door">
       <div class="rack door-rack" data-shelf="door"><h2 class="rack-label">Door</h2><ul class="rack-items"></ul></div>
+      <button type="button" id="door-close" class="door-close">Close door</button>
     </div>
   </section>
 </main>

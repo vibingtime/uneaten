@@ -75,6 +75,7 @@ function render() {
     ? '1 thing is past its date. Throw it away.'
     : `${expired} things are past their date. Throw them away.`;
   $('empty').hidden = items.length > 0;
+  showDoorNote();
   $('drag-hint').hidden = !(items.length >= 2 && !seen('dragHint'));
   renderOffer();
 }
@@ -478,6 +479,7 @@ $('add-form').addEventListener('submit', safely(async (e) => {
   items.push(item);
   remember(`shelf:${item.category}`, item.shelf);
   $('add-sheet').close();
+  setDoor(true); // show where it went (quietly; the chime is for tapping the door)
   render();
   changed();
   // Ask the browser not to evict photos when space runs low.
@@ -731,6 +733,65 @@ $('toast-undo').addEventListener('click', () => {
   clearTimeout(toastTimer);
   undoFn?.();
 });
+
+// ---------- fridge door ----------
+
+// The fridge starts closed. Tapping the door plays a chime and swings it
+// open; "Close door" shuts it again. The door's note says what is inside.
+function setDoor(open) {
+  $('fridge').classList.toggle('closed', !open);
+  $('fridge-door').tabIndex = open ? -1 : 0;
+  $('fridge-door').setAttribute('aria-hidden', String(open));
+  // While closed, what is behind the door can't be tapped or reached.
+  for (const part of $('fridge').querySelectorAll(':scope > .cabinet, :scope > .door')) part.inert = !open;
+}
+setDoor(false);
+
+function showDoorNote() {
+  const n = items.length;
+  $('door-count').textContent = n === 0 ? 'Empty' : n === 1 ? '1 thing inside' : `${n} things inside`;
+  $('fridge-door').setAttribute('aria-label', `Open the fridge. ${$('door-count').textContent}.`);
+}
+
+$('fridge-door').addEventListener('click', () => {
+  chime();
+  setDoor(true);
+});
+$('door-close').addEventListener('click', () => setDoor(false));
+
+// An original, cheerful door chime (a rising bell arpeggio), synthesized so
+// there is no sound file to download. Plays only from a tap, as browsers
+// require.
+let audio = null;
+function chime() {
+  try {
+    audio ??= new (window.AudioContext || window.webkitAudioContext)();
+    if (audio.state === 'suspended') audio.resume();
+    const start = audio.currentTime + 0.03;
+    const out = audio.createGain();
+    out.gain.value = 0.2;
+    out.connect(audio.destination);
+    // [frequency in Hz, start offset, ring time] — G5 C6 E6 G6, then a high C.
+    const notes = [[784, 0, 0.6], [1047, 0.14, 0.6], [1319, 0.28, 0.6], [1568, 0.42, 0.7], [2093, 0.62, 1.4]];
+    for (const [freq, at, ring] of notes) {
+      // A bell: the note plus a quieter, slightly sour overtone.
+      for (const [mult, level] of [[1, 1], [2.76, 0.22]]) {
+        const osc = audio.createOscillator();
+        const env = audio.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq * mult;
+        env.gain.setValueAtTime(0.0001, start + at);
+        env.gain.exponentialRampToValueAtTime(level, start + at + 0.012);
+        env.gain.exponentialRampToValueAtTime(0.0001, start + at + ring);
+        osc.connect(env).connect(out);
+        osc.start(start + at);
+        osc.stop(start + at + ring + 0.05);
+      }
+    }
+  } catch {
+    // No sound is fine; the door still opens.
+  }
+}
 
 // ---------- fridge light ----------
 

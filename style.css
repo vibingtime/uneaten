@@ -86,12 +86,86 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ---------- fridge ---------- */
 
 #fridge {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr 104px;
   gap: 8px;
   align-items: stretch;
   margin-top: 4px;
+  perspective: 1600px;
 }
+
+/* ---------- closed door ---------- */
+
+/* Covers the whole fridge. Opening swings it on its right-hand hinge toward
+   you and fades it, revealing the open fridge underneath. */
+.closed-door {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  width: 100%;
+  border: 0;
+  border-radius: 26px;
+  padding: 0;
+  background:
+    linear-gradient(100deg, rgb(255 255 255 / 0.55), transparent 35%),
+    linear-gradient(180deg, #eef2f4, #d3dbdf);
+  box-shadow: 0 0 0 1px var(--steel-edge), inset 0 -6px 14px rgb(0 0 0 / 0.08), 0 10px 30px rgb(0 0 0 / 0.14);
+  transform-origin: right center;
+  transition: transform 0.6s cubic-bezier(0.3, 0.7, 0.3, 1), opacity 0.3s ease 0.35s;
+}
+#fridge:not(.closed) .closed-door {
+  transform: rotateY(-100deg);
+  opacity: 0;
+  pointer-events: none;
+}
+#fridge.closed .closed-door { transition: opacity 0.15s ease, transform 0.5s ease 0.05s; }
+@media (prefers-reduced-motion: reduce) { .closed-door { transition: none !important; } }
+
+/* The handle, on the opening side (left). */
+.door-grip {
+  position: absolute;
+  left: 16px;
+  top: 30%;
+  width: 12px;
+  height: 24%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #8f9ca2, #f2f5f6 45%, #9aa8ae);
+  box-shadow: 2px 3px 6px rgb(0 0 0 / 0.2);
+}
+
+/* A sticky note held on by a magnet: how much is inside. */
+.magnet {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  display: grid;
+  gap: 6px;
+  min-width: 150px;
+  padding: 18px 18px 14px;
+  transform: translateX(-50%) rotate(-3deg);
+  border-radius: 4px;
+  background: #fff4b8;
+  color: #3a3115;
+  box-shadow: 0 6px 14px rgb(0 0 0 / 0.18);
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+}
+.magnet::before { /* the magnet */
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ff8a80, #d32f2f);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.3);
+}
+.magnet small { font-size: 16px; font-weight: 600; color: #6b5d2c; }
+
 
 /* The cabinet: brushed-steel shell around a lit, cool interior. */
 .cabinet {
@@ -198,6 +272,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* The open door, swung out to the right, with deep bins for jars. */
 .door {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   border-radius: 22px 26px 26px 22px;
   padding: 12px 8px;
   background: linear-gradient(90deg, var(--steel-2), var(--steel-1) 30%, var(--steel-2));
@@ -213,9 +290,19 @@ button { font: inherit; color: inherit; cursor: pointer; }
   border-radius: 999px;
   background: linear-gradient(90deg, #9aa8ae, #e9eef0, #9aa8ae);
 }
+.door-close {
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.75);
+  color: #2b3a41;
+  font-size: 15px;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.15);
+}
 .door-rack {
   transition: background 0.4s;
-  height: 100%;
+  flex: 1;
   padding: 6px 6px 8px;
   background: linear-gradient(180deg, var(--inside-1), var(--inside-2));
   box-shadow: inset 0 2px 10px rgb(0 40 60 / 0.15);
