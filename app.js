@@ -286,6 +286,7 @@ let undoFn;
 function toast(msg, undo) {
   $('toast-text').textContent = msg;
   undoFn = undo;
+  $('toast-undo').hidden = !undo;
   $('toast').hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => ($('toast').hidden = true), 5000);
@@ -316,21 +317,50 @@ function offerKind() {
   return null;
 }
 
+// A message that replaces the offer after "Turn on", so every outcome is
+// visible: {text, retry} where retry shows the button again.
+let offerNote = null;
+
 function renderOffer() {
   const kind = offerKind();
-  $('offer').hidden = !kind;
-  $('offer-text').textContent = 'Want a reminder before food goes bad?';
+  $('offer').hidden = !kind && !offerNote;
+  $('offer-text').textContent = offerNote?.text ?? 'Want a reminder before food goes bad?';
+  $('offer-yes').hidden = Boolean(offerNote && !offerNote.retry);
+  $('offer-yes').textContent = offerNote?.retry ? 'Try again' : 'Turn on';
+  $('offer-no').textContent = offerNote && !offerNote.retry ? 'OK' : 'Not now';
 }
 
 $('offer-yes').addEventListener('click', async () => {
   if (offerKind() === 'ios') return $('ios-sheet').showModal();
-  await Notification.requestPermission();
-  renderOffer();
-  await sync();
+  const btn = $('offer-yes');
+  btn.disabled = true;
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      await sync();
+      offerNote = null;
+      toast('Reminders are on. You will get one at 9:00 when food is due.');
+    } else if (perm === 'denied') {
+      offerNote = {
+        text: 'Notifications are blocked for this app. Allow them in your phone or browser settings, then reopen the app.',
+        retry: false,
+      };
+    } else {
+      offerNote = { text: 'Tap Allow when your phone asks. Look for a bell icon in the address bar if nothing pops up.', retry: true };
+    }
+  } catch (err) {
+    offerNote = { text: `Could not turn on reminders (${err.message || err}). Check your internet and try again.`, retry: true };
+  } finally {
+    btn.disabled = false;
+    renderOffer();
+  }
 });
 
 $('offer-no').addEventListener('click', () => {
-  try { localStorage.setItem('offerSnoozed', String(Date.now())); } catch {}
+  if (!offerNote) {
+    try { localStorage.setItem('offerSnoozed', String(Date.now())); } catch {}
+  }
+  offerNote = null;
   renderOffer();
 });
 
@@ -344,8 +374,8 @@ async function sync() {
   if (!canPush || Notification.permission !== 'granted') return;
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription()
-    ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: cfg.vapidPublicKey });
-  await fetch(new URL('sync', cfg.pushUrl), {
+    ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(cfg.vapidPublicKey) });
+  const res = await fetch(new URL('sync', cfg.pushUrl), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -354,6 +384,13 @@ async function sync() {
       dates: items.map((i) => i.expires),
     }),
   });
+  if (!res.ok) throw new Error(`reminder server said ${res.status}`);
+}
+
+// Safari wants the key as bytes, not the base64url text.
+function keyBytes(b64url) {
+  const bin = atob(b64url.replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
 // ---------- start ----------
