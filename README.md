@@ -5,7 +5,7 @@ A tiny phone app for leftovers. Snap a photo, maybe type what it is, tap
 a reminder pops up at 9:00 when something is due.
 
 - **Add:** tap **+ Add** → **Take photo** or **Choose from gallery** → pick
-  *Leftovers* or *Dips & sauces* → (optional name) → pick a shelf → pick how
+  *Leftovers*, *Dips & sauces* or *Fruit & veg* → (optional name) → pick a shelf → pick how
   long it keeps → **Save**. Each kind has its own expiry choices (leftovers:
   days; dips & sauces: weeks to months) and its usual spot (sauces go on the
   door). The app remembers the last shelf you used for each kind.
@@ -14,8 +14,9 @@ a reminder pops up at 9:00 when something is due.
   *months*) and which shelf it goes on. Choose your kind, then tap **Edit this
   kind** to rename or delete it. Deleting a kind turns its items into Leftovers.
 - **Fridge:** the home screen is an open fridge with a top, middle and bottom
-  shelf and a door rack. Every item shows a plain-words badge, such as *3 days*,
-  *Tomorrow*, *Today* or *Throw away*.
+  shelf, a fruit & veg drawer and a door rack. Every item shows a plain-words badge, such as *3 days*,
+  *Tomorrow*, *Today* or *Throw away*. Tap the light at the top to switch it
+  off and on.
 - **Move:** press and hold an item, then drag it to another shelf. **Move
   shelf** on the item's screen does the same thing.
 - **Done with it:** tap the item → **Eaten or thrown away**. **Undo** is there

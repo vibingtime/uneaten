@@ -40,10 +40,11 @@
        app.js from each item's `shelf`. -->
   <section id="fridge" aria-label="Fridge">
     <div class="cabinet">
+      <button type="button" id="light" class="light" aria-label="Fridge light" aria-pressed="true"><span></span></button>
       <div class="rack shelf" data-shelf="top"><h2 class="rack-label">Top shelf</h2><ul class="rack-items"></ul></div>
       <div class="rack shelf" data-shelf="middle"><h2 class="rack-label">Middle shelf</h2><ul class="rack-items"></ul></div>
       <div class="rack shelf" data-shelf="bottom"><h2 class="rack-label">Bottom shelf</h2><ul class="rack-items"></ul></div>
-      <div class="crisper" aria-hidden="true"><span></span><span></span></div>
+      <div class="rack drawer" data-shelf="drawer"><h2 class="rack-label">Fruit &amp; veg drawer</h2><ul class="rack-items"></ul></div>
     </div>
     <div class="door">
       <div class="rack door-rack" data-shelf="door"><h2 class="rack-label">Door</h2><ul class="rack-items"></ul></div>

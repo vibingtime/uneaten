@@ -101,19 +101,40 @@ button { font: inherit; color: inherit; cursor: pointer; }
     0 10px 30px rgb(0 0 0 / 0.12);
   min-height: 62dvh;
 }
-/* The little light at the top of the cabinet. */
-.cabinet::before {
-  content: "";
+/* The light at the top of the cabinet: a real button. The tap area is much
+   bigger than the lamp so it is easy to hit. */
+.light {
   position: absolute;
-  top: 4px;
+  top: -6px;
   left: 50%;
-  width: 44px;
-  height: 6px;
+  z-index: 1;
+  width: 88px;
+  height: 44px;
   transform: translateX(-50%);
+  border: 0;
+  background: none;
+  padding: 0;
+}
+.light span {
+  display: block;
+  width: 48px;
+  height: 7px;
+  margin: 0 auto;
   border-radius: 999px;
   background: #fffbe6;
   box-shadow: 0 0 18px 6px rgb(255 248 214 / 0.9);
+  transition: background 0.3s, box-shadow 0.3s;
 }
+
+/* Light off: the cabinet goes dim, items stay readable. */
+.cabinet { transition: background 0.4s; }
+#fridge.light-off .cabinet {
+  background: linear-gradient(180deg, #43525a, #2b363d);
+}
+#fridge.light-off .light span { background: #8c9599; box-shadow: none; }
+#fridge.light-off .door-rack { background: linear-gradient(180deg, #43525a, #2b363d); }
+#fridge.light-off .rack-label { color: #c9d6dc; }
+#fridge.light-off .tile { filter: brightness(0.8); }
 
 .rack { position: relative; border-radius: 14px; transition: background 0.15s, box-shadow 0.15s; }
 
@@ -155,18 +176,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
   align-items: end;
 }
 
-.crisper {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+/* The fruit & veg drawer: a see-through box with a thick rim. */
+.drawer {
   margin-top: 10px;
-}
-.crisper span {
-  height: 46px;
-  border-radius: 10px 10px 16px 16px;
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.6), rgb(190 220 232 / 0.6));
+  min-height: 96px;
+  padding: 8px 6px 10px;
   border: 2px solid var(--glass-edge);
-  border-top-width: 6px;
+  border-top-width: 7px;
+  border-radius: 10px 10px 18px 18px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.5), rgb(190 220 232 / 0.55));
 }
 
 /* The open door, swung out to the right, with deep bins for jars. */
@@ -188,6 +206,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   background: linear-gradient(90deg, #9aa8ae, #e9eef0, #9aa8ae);
 }
 .door-rack {
+  transition: background 0.4s;
   height: 100%;
   padding: 6px 6px 8px;
   background: linear-gradient(180deg, var(--inside-1), var(--inside-2));
