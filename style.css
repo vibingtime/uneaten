@@ -492,14 +492,25 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
 .chip[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
 .chips input[type="date"] { margin-top: 4px; }
 
+.item-photo { position: relative; margin-bottom: 16px; }
 #item-photo {
+  display: block;
   width: 100%;
-  max-height: 44dvh;
+  max-height: 40dvh;
   object-fit: cover;
   border-radius: var(--radius);
-  margin-bottom: 16px;
 }
-#item-photo[hidden] { display: none; }
+#item-photo[hidden], .item-photo-pick[hidden] { display: none; }
+/* With no photo, the buttons sit in a dashed slot like the add sheet's. */
+.item-photo-pick {
+  padding: 14px;
+  border: 2px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+/* Changing an existing photo: the buttons appear under it. */
+#item-photo:not([hidden]) + .photo-change + .item-photo-pick { margin-top: 10px; }
+.item-photo-pick .link-btn { justify-self: center; }
 #item-note { overflow-wrap: anywhere; }
 .item-title { margin: 0 0 12px; }
 .item-title[hidden], .fridge-title[hidden], .rename[hidden] { display: none; }
@@ -555,6 +566,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
   font-weight: 600;
 }
 #toast[hidden] { display: none; }
+/* Over an open sheet the message goes to the top, clear of the sheet's buttons. */
+#toast.in-sheet { top: calc(12px + env(safe-area-inset-top)); bottom: auto; }
 #toast-text {
   min-width: 0;
   display: -webkit-box;
