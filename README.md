@@ -9,6 +9,10 @@ a reminder pops up at 9:00 when something is due.
   long it keeps → **Save**. Each kind has its own expiry choices (leftovers:
   days; dips & sauces: weeks to months) and its usual spot (sauces go on the
   door). The app remembers the last shelf you used for each kind.
+- **Your own kinds:** tap **+ New kind** → name it (e.g. *Dairy*) → pick a
+  picture → say how long it usually keeps (*a few days*, *a few weeks* or
+  *months*) and which shelf it goes on. Choose your kind, then tap **Edit this
+  kind** to rename or delete it. Deleting a kind turns its items into Leftovers.
 - **Fridge:** the home screen is an open fridge with a top, middle and bottom
   shelf and a door rack. Every item shows a plain-words badge, such as *3 days*,
   *Tomorrow*, *Today* or *Throw away*.

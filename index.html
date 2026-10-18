@@ -73,7 +73,34 @@
     <fieldset class="field">
       <legend>What kind?</legend>
       <div class="chips" id="add-category"></div>
+      <button type="button" id="kind-edit" class="link-btn" hidden>Edit this kind</button>
     </fieldset>
+    <!-- Making or editing one of your own kinds, right inside the add sheet. -->
+    <div id="kind-form" class="kind-form" hidden>
+      <h3 id="kind-title">New kind</h3>
+      <label class="field">
+        <span>Name</span>
+        <input id="kind-name" type="text" maxlength="24" placeholder="Dairy" autocomplete="off" enterkeyhint="done">
+      </label>
+      <fieldset class="field">
+        <legend>Picture</legend>
+        <div class="chips emoji-chips" id="kind-icon"></div>
+      </fieldset>
+      <fieldset class="field">
+        <legend>Usually keeps for</legend>
+        <div class="chips" id="kind-keeps"></div>
+      </fieldset>
+      <fieldset class="field">
+        <legend>Usually goes on</legend>
+        <div class="chips" id="kind-shelf"></div>
+      </fieldset>
+      <p id="kind-error" class="form-error" hidden>Give it a name first.</p>
+      <div class="kind-actions">
+        <button type="button" id="kind-save" class="btn btn-primary">Add kind</button>
+        <button type="button" id="kind-cancel" class="btn btn-quiet">Cancel</button>
+        <button type="button" id="kind-delete" class="btn btn-danger" hidden>Delete kind</button>
+      </div>
+    </div>
     <label class="field">
       <span>Name <em>(optional)</em></span>
       <input id="add-note" type="text" maxlength="60" autocomplete="off" enterkeyhint="done">
@@ -86,7 +113,7 @@
       <legend>Eat within</legend>
       <div class="chips" id="add-chips"></div>
     </fieldset>
-    <div class="sheet-actions sticky">
+    <div class="sheet-actions sticky" id="add-actions">
       <button type="submit" class="btn btn-primary btn-big">Save</button>
       <button type="button" class="btn btn-quiet" data-close>Cancel</button>
     </div>

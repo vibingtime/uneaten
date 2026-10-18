@@ -42,7 +42,9 @@ globalThis.Dates = (() => {
     if (days === 0) return 'Today';
     if (days === 1) return 'Tomorrow';
     if (days < 14) return `${days} days`;
-    return `${Math.floor(days / 7)} weeks`;
+    if (days < 28) return `${Math.floor(days / 7)} weeks`;
+    const months = Math.round(days / 30.4);
+    return months === 1 ? '1 month' : `${months} months`;
   }
 
   function longDate(iso) {

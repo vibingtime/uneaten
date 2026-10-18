@@ -370,6 +370,7 @@ body.dragging .rack.drop { background: rgb(31 122 77 / 0.14); box-shadow: inset 
   background: var(--card);
   box-shadow: 0 -8px 16px -12px rgb(0 0 0 / 0.3);
 }
+.sheet-actions[hidden] { display: none; }
 .sheet-actions .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 .photo-slot {
@@ -485,3 +486,34 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
   font-weight: 800;
   text-decoration: underline;
 }
+
+/* ---------- your own kinds ---------- */
+
+.kind-form {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 2px solid var(--line);
+  scroll-margin-top: 12px;
+}
+.kind-form[hidden] { display: none; }
+.kind-form h3 { margin: 0; font-size: 20px; }
+.kind-form .field:first-of-type { margin-top: 10px; }
+.kind-form input[type="text"] { background: var(--card); }
+.emoji-chips .chip { min-width: 56px; padding: 0 10px; font-size: 26px; }
+.kind-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.btn-danger { background: var(--bad-bg); color: var(--bad-ink); margin-left: auto; }
+.form-error { margin: 12px 0 0; color: var(--bad-ink); font-weight: 700; }
+.link-btn {
+  justify-self: start;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--brand);
+  font-weight: 700;
+  text-decoration: underline;
+}
+.link-btn[hidden] { display: none; }

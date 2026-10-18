@@ -4,29 +4,34 @@
 const $ = (id) => document.getElementById(id);
 const cfg = globalThis.UNEATEN_CONFIG || {};
 
-// Each kind of food keeps its own sensible expiry choices and its usual spot.
-const CATEGORIES = {
-  leftovers: {
-    label: 'Leftovers', icon: '🍲', example: 'Pasta from Sunday', shelf: 'middle', days: 3,
-    choices: [['Tomorrow', 1], ['3 days', 3], ['5 days', 5], ['1 week', 7]],
-  },
-  sauces: {
-    label: 'Dips & sauces', icon: '🥫', example: 'Garlic mayo', shelf: 'door', days: 14,
-    choices: [['1 week', 7], ['2 weeks', 14], ['1 month', 30], ['2 months', 60]],
-  },
+// How long a kind of food usually keeps decides which expiry choices it offers.
+const KEEPS = {
+  days: { label: 'A few days', days: 3, choices: [['Tomorrow', 1], ['3 days', 3], ['5 days', 5], ['1 week', 7]] },
+  weeks: { label: 'A few weeks', days: 14, choices: [['1 week', 7], ['2 weeks', 14], ['1 month', 30], ['2 months', 60]] },
+  months: { label: 'Months', days: 30, choices: [['1 month', 30], ['2 months', 60], ['3 months', 91], ['6 months', 182]] },
 };
+// Kinds every fridge starts with. The user's own kinds are added from the DB.
+const BUILT_IN = {
+  leftovers: { id: 'leftovers', label: 'Leftovers', icon: '🍲', keeps: 'days', shelf: 'middle', example: 'Pasta from Sunday' },
+  sauces: { id: 'sauces', label: 'Dips & sauces', icon: '🥫', keeps: 'weeks', shelf: 'door', example: 'Garlic mayo' },
+};
+const ICONS = ['🧀', '🥛', '🥚', '🥗', '🍎', '🥕', '🍰', '🍕', '🍗', '🐟', '🍚', '🧃', '🍫', '🥣', '🍲', '🥫'];
 const SHELVES = { top: 'Top shelf', middle: 'Middle shelf', bottom: 'Bottom shelf', door: 'Door' };
 
 let items = [];
+let kinds = { ...BUILT_IN };
 let urls = [];
 
-const cat = (item) => CATEGORIES[item.category] ?? CATEGORIES.leftovers;
+const cat = (item) => kinds[item.category] ?? kinds.leftovers;
+const keepsOf = (c) => KEEPS[c.keeps] ?? KEEPS.days;
 
 // ---------- fridge ----------
 
 async function load() {
   // Items saved before shelves and categories existed go on the middle shelf.
   items = (await DB.all()).map((i) => ({ category: 'leftovers', shelf: 'middle', ...i }));
+  kinds = { ...BUILT_IN };
+  for (const c of await DB.categories()) kinds[c.id] = c;
   render();
 }
 
@@ -248,7 +253,6 @@ function chip(label) {
 }
 
 const shelfOptions = Object.entries(SHELVES);
-const categoryOptions = Object.entries(CATEGORIES).map(([k, c]) => [k, `${c.icon} ${c.label}`]);
 
 // ---------- add ----------
 
@@ -280,20 +284,102 @@ for (const input of [$('camera'), $('gallery')]) {
 function resetDraft() {
   setPhoto(null);
   $('add-note').value = '';
-  pickOne($('add-category'), categoryOptions, 'leftovers', setCategory);
+  closeKindForm();
   setCategory('leftovers');
+}
+
+// The kind chips: built-in kinds, the user's own, and "+ New kind".
+function renderKinds() {
+  const options = Object.values(kinds).map((c) => [c.id, `${c.icon} ${c.label}`]);
+  pickOne($('add-category'), [...options, ['new', '+ New kind']], draft.category, (key) => {
+    if (key === 'new') openKindForm(null);
+    else setCategory(key);
+  });
+  $('kind-edit').hidden = Boolean(BUILT_IN[draft.category]) || !$('kind-form').hidden;
 }
 
 // Switching kind resets the shelf and expiry to what suits that kind.
 function setCategory(key) {
-  const c = CATEGORIES[key];
-  draft.category = key;
-  draft.shelf = SHELVES[recall(`shelf:${key}`)] ? recall(`shelf:${key}`) : c.shelf;
-  draft.expires = Dates.addDays(Dates.today(), c.days);
-  $('add-note').placeholder = c.example;
+  const c = kinds[key] ?? kinds.leftovers;
+  const k = keepsOf(c);
+  closeKindForm();
+  draft.category = c.id;
+  draft.shelf = SHELVES[recall(`shelf:${c.id}`)] ? recall(`shelf:${c.id}`) : c.shelf;
+  draft.expires = Dates.addDays(Dates.today(), k.days);
+  $('add-note').placeholder = c.example ?? '';
+  renderKinds();
   pickOne($('add-shelf'), shelfOptions, draft.shelf, (s) => (draft.shelf = s));
-  dateChips($('add-chips'), c.choices, (iso) => (draft.expires = iso), c.days, c.days);
+  dateChips($('add-chips'), k.choices, (iso) => (draft.expires = iso), k.days, k.days);
 }
+
+// ---------- your own kinds ----------
+
+const kindDraft = { id: null, icon: ICONS[0], keeps: 'days', shelf: 'middle' };
+
+function openKindForm(c) {
+  Object.assign(kindDraft, c ? { id: c.id, icon: c.icon, keeps: c.keeps, shelf: c.shelf }
+    : { id: null, icon: ICONS[0], keeps: 'days', shelf: 'middle' });
+  $('kind-title').textContent = c ? 'Edit kind' : 'New kind';
+  $('kind-save').textContent = c ? 'Save kind' : 'Add kind';
+  $('kind-delete').hidden = !c;
+  $('kind-error').hidden = true;
+  $('kind-name').value = c?.label ?? '';
+  pickOne($('kind-icon'), ICONS.map((i) => [i, i]), kindDraft.icon, (i) => (kindDraft.icon = i));
+  pickOne($('kind-keeps'), Object.entries(KEEPS).map(([k, v]) => [k, v.label]), kindDraft.keeps, (k) => (kindDraft.keeps = k));
+  pickOne($('kind-shelf'), shelfOptions, kindDraft.shelf, (s) => (kindDraft.shelf = s));
+  $('kind-form').hidden = false;
+  $('kind-edit').hidden = true;
+  // One obvious next step: finish the kind before saving the item.
+  $('add-actions').hidden = true;
+  $('kind-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('kind-name').focus({ preventScroll: true });
+}
+
+function closeKindForm() {
+  $('kind-form').hidden = true;
+  $('add-actions').hidden = false;
+}
+
+$('kind-edit').addEventListener('click', () => openKindForm(kinds[draft.category]));
+$('kind-cancel').addEventListener('click', () => setCategory(draft.category));
+// Enter in the name box saves the kind, not the whole item.
+$('kind-name').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  $('kind-save').click();
+});
+
+$('kind-save').addEventListener('click', async () => {
+  const label = $('kind-name').value.trim();
+  const clash = Object.values(kinds).find((c) => c.id !== kindDraft.id && c.label.toLowerCase() === label.toLowerCase());
+  $('kind-error').textContent = !label ? 'Give it a name first.' : clash ? `You already have “${clash.label}”.` : '';
+  $('kind-error').hidden = !$('kind-error').textContent;
+  if (!$('kind-error').hidden) return;
+  const c = {
+    id: kindDraft.id ?? `k-${Date.now().toString(36)}`,
+    label, icon: kindDraft.icon, keeps: kindDraft.keeps, shelf: kindDraft.shelf,
+  };
+  await DB.putCategory(c);
+  kinds[c.id] = c;
+  remember(`shelf:${c.id}`, c.shelf);
+  setCategory(c.id);
+  render();
+});
+
+$('kind-delete').addEventListener('click', async () => {
+  const c = kinds[kindDraft.id];
+  const using = items.filter((i) => i.category === c.id);
+  const what = using.length === 1 ? '1 item' : `${using.length} items`;
+  if (!confirm(`Delete “${c.label}”?${using.length ? ` ${what} will become Leftovers.` : ''}`)) return;
+  for (const i of using) {
+    i.category = 'leftovers';
+    await DB.put(i);
+  }
+  await DB.removeCategory(c.id);
+  delete kinds[c.id];
+  setCategory('leftovers');
+  render();
+});
 
 function setPhoto(blob) {
   draft.photo = blob;
@@ -368,8 +454,8 @@ function showWhen(item) {
 $('item-change').addEventListener('click', () => {
   $('item-move').hidden = true;
   $('item-date').hidden = false;
-  const c = cat(current);
-  dateChips($('item-chips'), c.choices, async (iso) => {
+  const k = keepsOf(cat(current));
+  dateChips($('item-chips'), k.choices, async (iso) => {
     current.expires = iso;
     await DB.put(current);
     showWhen(current);
@@ -377,7 +463,7 @@ $('item-change').addEventListener('click', () => {
     changed();
     // A quick-pick chip is a final answer; a typed date may still be fiddled with.
     if (document.activeElement?.type !== 'date') $('item-sheet').close();
-  }, null, c.days);
+  }, null, k.days);
 });
 
 $('item-relocate').addEventListener('click', () => {
