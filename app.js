@@ -811,15 +811,38 @@ function stopDoorSound() {
 }
 
 // Checks the browser can actually play a file before keeping it.
-function playable(url) {
-  return new Promise((resolve) => {
-    const a = new Audio();
-    const finish = (ok) => { clearTimeout(timer); a.removeAttribute('src'); resolve(ok); };
-    const timer = setTimeout(() => finish(false), 5000);
-    a.addEventListener('loadedmetadata', () => finish(true), { once: true });
-    a.addEventListener('error', () => finish(false), { once: true });
-    a.src = url;
-  });
+// Checks the phone can play a file before keeping it. Decoding the sound is
+// the reliable test on phones; asking a media element is the fallback.
+async function playable(file) {
+  try {
+    const ctx = new (window.OfflineAudioContext || window.webkitOfflineAudioContext)(1, 1, 44100);
+    await ctx.decodeAudioData(await file.arrayBuffer());
+    return true;
+  } catch {}
+  const url = URL.createObjectURL(file);
+  try {
+    return await new Promise((resolve) => {
+      const a = new Audio();
+      const finish = (ok) => { clearTimeout(timer); a.removeAttribute('src'); resolve(ok); };
+      const timer = setTimeout(() => finish(false), 8000);
+      a.addEventListener('loadedmetadata', () => finish(true), { once: true });
+      a.addEventListener('error', () => finish(false), { once: true });
+      a.preload = 'metadata'; // some phones load nothing unless asked
+      a.src = url;
+      a.load();
+    });
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+// Phones often report MP3s and friends as "unknown type"; label them from
+// the file name so they play back later.
+const AUDIO_TYPES = { mp3: 'audio/mpeg', m4a: 'audio/mp4', aac: 'audio/aac', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', flac: 'audio/flac' };
+function asAudio(file) {
+  if (file.type.startsWith('audio/')) return file;
+  const type = AUDIO_TYPES[file.name.split('.').pop().toLowerCase()];
+  return type ? new Blob([file], { type }) : file;
 }
 
 function renderSoundSheet() {
@@ -871,25 +894,122 @@ function setDoorColor(hex) {
   renderColors();
 }
 
+// The color buttons are made once and only re-marked afterwards: rebuilding
+// them mid-tap (when leaving the color code box saves) would swallow the tap.
+$('door-swatches').append(...DOOR_COLORS.map(([hex, name]) => {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'swatch';
+  b.style.background = hex;
+  b.dataset.color = hex;
+  b.setAttribute('aria-label', name);
+  b.title = name;
+  b.addEventListener('click', () => setDoorColor(hex));
+  return b;
+}));
+
 function renderColors() {
   const current = doorColor();
-  $('door-swatches').replaceChildren(...DOOR_COLORS.map(([hex, name]) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'swatch';
-    b.style.background = hex;
-    b.setAttribute('aria-label', name);
-    b.title = name;
-    b.setAttribute('aria-pressed', String(hex === current));
-    b.addEventListener('click', () => setDoorColor(hex));
-    return b;
-  }));
-  $('door-color-input').value = current;
+  for (const b of $('door-swatches').children) b.setAttribute('aria-pressed', String(b.dataset.color === current));
+  showPicker(current);
 }
 
-// The color picker updates the door live while it is being dragged.
-$('door-color-input').addEventListener('input', (e) => applyDoorColor(e.target.value));
-$('door-color-input').addEventListener('change', (e) => setDoorColor(e.target.value.toLowerCase()));
+// ---------- color picker ----------
+
+// Hue (0-360), saturation and value (0-1). The square sets saturation (left
+// to right) and value (top to bottom); the rainbow bar sets the hue. Dragging
+// recolors the door live; letting go saves.
+const hsv = { h: 0, s: 0, v: 1 };
+
+function hsvToHex({ h, s, v }) {
+  const f = (n) => {
+    const k = (n + h / 60) % 6;
+    return Math.round(255 * (v - v * s * Math.max(0, Math.min(k, 4 - k, 1))));
+  };
+  return '#' + [f(5), f(3), f(1)].map((x) => x.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToHsv(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+  let h = 0;
+  if (d) h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: (h * 60 + 360) % 360, s: max ? d / max : 0, v: max };
+}
+
+// Moves the controls to show `hex`. The hue is kept for greys, which have none.
+function showPicker(hex) {
+  const next = hexToHsv(hex);
+  if (next.s === 0) next.h = hsv.h;
+  Object.assign(hsv, next);
+  drawPicker(hex);
+}
+
+// `typing` is true while the color code box itself is being edited, so the
+// box is not rewritten under the person's fingers.
+function drawPicker(hex = hsvToHex(hsv), typing = false) {
+  const sv = $('sv');
+  sv.style.setProperty('--hue', hsv.h);
+  sv.style.setProperty('--s', hsv.s);
+  sv.style.setProperty('--v', hsv.v);
+  sv.setAttribute('aria-valuetext', hex);
+  $('hue').value = Math.round(hsv.h);
+  if (!typing) $('hex').value = hex;
+}
+
+function previewPicked(typing = false) {
+  const hex = hsvToHex(hsv);
+  applyDoorColor(hex);
+  drawPicker(hex, typing);
+  for (const b of $('door-swatches').children) b.setAttribute('aria-pressed', 'false');
+}
+
+const savePicked = () => setDoorColor(hsvToHex(hsv));
+
+function svAt(e) {
+  const r = $('sv').getBoundingClientRect();
+  hsv.s = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+  hsv.v = 1 - Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
+  previewPicked();
+}
+
+$('sv').addEventListener('pointerdown', (e) => {
+  $('sv').setPointerCapture(e.pointerId);
+  svAt(e);
+});
+$('sv').addEventListener('pointermove', (e) => $('sv').hasPointerCapture(e.pointerId) && svAt(e));
+$('sv').addEventListener('pointerup', savePicked);
+$('sv').addEventListener('keydown', (e) => {
+  const step = { ArrowRight: [0.02, 0], ArrowLeft: [-0.02, 0], ArrowUp: [0, 0.02], ArrowDown: [0, -0.02] }[e.key];
+  if (!step) return;
+  e.preventDefault();
+  hsv.s = Math.min(1, Math.max(0, hsv.s + step[0]));
+  hsv.v = Math.min(1, Math.max(0, hsv.v + step[1]));
+  previewPicked();
+  savePicked();
+});
+$('hue').addEventListener('input', () => {
+  hsv.h = Number($('hue').value);
+  // Picking a hue on a grey would show no change, so give it some color.
+  if (hsv.s < 0.15) hsv.s = 0.6;
+  if (hsv.v < 0.15) hsv.v = 0.85;
+  previewPicked();
+});
+$('hue').addEventListener('change', savePicked);
+$('hex').addEventListener('input', () => {
+  let v = $('hex').value.trim().toLowerCase();
+  if (!v.startsWith('#')) v = '#' + v;
+  if (!/^#[0-9a-f]{6}$/.test(v)) return;
+  Object.assign(hsv, hexToHsv(v));
+  previewPicked(true);
+});
+$('hex').addEventListener('change', () => {
+  let v = $('hex').value.trim().toLowerCase();
+  if (!v.startsWith('#')) v = '#' + v;
+  if (/^#[0-9a-f]{6}$/.test(v)) setDoorColor(v);
+  else $('hex').value = doorColor(); // not a color code: put the current one back
+});
+$('hex').addEventListener('keydown', (e) => e.key === 'Enter' && $('hex').blur());
 applyDoorColor(doorColor());
 
 $('sound-input').addEventListener('change', safely(async () => {
@@ -900,15 +1020,13 @@ $('sound-input').addEventListener('change', safely(async () => {
     renderSoundSheet();
     return toast('That sound file is too big. Pick one under 5 MB, a few seconds long.');
   }
-  const url = URL.createObjectURL(file);
-  const ok = await playable(url);
-  URL.revokeObjectURL(url);
-  if (!ok) {
+  const sound = asAudio(file);
+  if (!(await playable(sound))) {
     renderSoundSheet();
     return toast('That file could not be played. Try an MP3 or M4A sound.');
   }
-  await DB.putDoorSound(file, file.name);
-  useCustomSound(file, file.name);
+  await DB.putDoorSound(sound, file.name);
+  useCustomSound(sound, file.name);
   remember('doorSound', 'custom');
   renderSoundSheet();
   playDoorSound(); // let them hear it

@@ -18,8 +18,9 @@ a reminder pops up at 9:00 when something is due.
   Tap the door: a little chime plays and it swings open.
 - **Settings (☰, top right):** *Door sound*: the built-in chime, a sound file
   from your own phone (kept only on the phone, never uploaded), or no sound.
-  *Door color*: 8 ready-made colors or any color from the color picker; the
-  door and the fridge's frame follow it. **Close door** at the
+  *Door color*: 8 ready-made colors, or *Pick any color*: drag in the shade
+  square, slide the rainbow bar, or type a color code; the door and the
+  fridge's frame follow it live. **Close door** at the
   bottom of the open door shuts it. Saving a new dish opens it to show where it
   went.
 - **Fridge:** inside is an open fridge with a top, middle and bottom

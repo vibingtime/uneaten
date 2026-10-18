@@ -222,17 +222,29 @@
       <div class="door-preview" aria-hidden="true"><span></span></div>
       <div class="swatches" id="door-swatches"></div>
     </div>
-    <label class="color-pick">
-      <span>Pick any color</span>
-      <input id="door-color-input" type="color" value="#dde4e7">
-    </label>
+    <!-- Pick any color: drag in the square for the shade, the rainbow bar
+         for the hue, or type a color code. -->
+    <div class="picker">
+      <p class="picker-label">Pick any color</p>
+      <div id="sv" class="sv" role="slider" tabindex="0" aria-label="Color shade: left to right is paler to stronger, top to bottom is brighter to darker">
+        <span id="sv-knob" class="sv-knob"></span>
+      </div>
+      <input id="hue" class="hue" type="range" min="0" max="359" step="1" aria-label="Color hue">
+      <label class="hex-field">
+        <span>Color code</span>
+        <input id="hex" type="text" maxlength="7" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
+      </label>
+    </div>
   </section>
 
   <div class="sheet-actions">
     <button type="button" class="btn btn-primary btn-big" data-close>Done</button>
   </div>
 </dialog>
-<input id="sound-input" type="file" accept="audio/*" hidden>
+<!-- Listing the file types too makes Android open its normal file browser,
+     where MP3s in Downloads and other folders can be picked; "audio/*" alone
+     can open a limited audio browser that greys them out. -->
+<input id="sound-input" type="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.ogg,.oga,.opus,.flac" hidden>
 
 <dialog id="ios-sheet" class="sheet" aria-labelledby="ios-title">
   <h2 id="ios-title">Get reminders on iPhone</h2>
