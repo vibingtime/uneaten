@@ -481,6 +481,32 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
 }
 #item-photo[hidden] { display: none; }
 #item-note { overflow-wrap: anywhere; }
+.item-title { margin: 0 0 12px; }
+.item-title[hidden], .fridge-title[hidden], .rename[hidden] { display: none; }
+#fridge-rename { margin: 20px 0 12px; }
+.fridge-title.long { font-size: 22px; }
+/* The name looks like a heading but is a button, with a pencil to say so. */
+.name-btn {
+  display: inline;
+  padding: 4px 0;
+  min-height: 44px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  border-bottom: 2px dashed var(--line);
+}
+.pencil { margin-left: 8px; font-size: 18px; vertical-align: 2px; }
+.rename { display: grid; gap: 10px; margin: 0 0 12px; }
+.rename .field { margin: 0; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 #item-where { margin: 0 0 8px; color: var(--muted); font-weight: 600; }
 #item-when { margin: 0; font-size: 20px; }
 #item-when .badge { margin-left: 6px; }

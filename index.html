@@ -19,7 +19,20 @@
 <body>
 
 <header>
-  <h1>My fridge</h1>
+  <!-- Tap the title to name the fridge. -->
+  <h1 class="fridge-title">
+    <button type="button" id="fridge-name" class="name-btn">
+      <span id="fridge-name-text">My fridge</span><span class="pencil" aria-hidden="true">✏️</span>
+      <span class="sr-only">(tap to rename)</span>
+    </button>
+  </h1>
+  <div id="fridge-rename" class="rename" hidden>
+    <label class="field">
+      <span>Fridge name <small class="counter" id="fridge-rename-count" hidden></small></span>
+      <input id="fridge-rename-input" type="text" placeholder="My fridge" autocomplete="off" enterkeyhint="done">
+    </label>
+    <button type="button" id="fridge-rename-save" class="btn btn-secondary">Save name</button>
+  </div>
 </header>
 
 <main>
@@ -123,7 +136,20 @@
 
 <dialog id="item-sheet" class="sheet" aria-labelledby="item-note">
   <img id="item-photo" alt="">
-  <h2 id="item-note"></h2>
+  <!-- Tap the name to rename the dish. -->
+  <h2 class="item-title">
+    <button type="button" id="item-name" class="name-btn">
+      <span id="item-note"></span><span class="pencil" aria-hidden="true">✏️</span>
+      <span class="sr-only">(tap to rename)</span>
+    </button>
+  </h2>
+  <div id="item-rename" class="rename" hidden>
+    <label class="field">
+      <span>Name <small class="counter" id="item-rename-count" hidden></small></span>
+      <input id="item-rename-input" type="text" autocomplete="off" enterkeyhint="done">
+    </label>
+    <button type="button" id="item-rename-save" class="btn btn-secondary">Save name</button>
+  </div>
   <p id="item-where"></p>
   <p id="item-when"></p>
   <div id="item-date" hidden>

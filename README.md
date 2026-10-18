@@ -21,6 +21,9 @@ a reminder pops up at 9:00 when something is due.
   shelf** on the item's screen does the same thing.
 - **Done with it:** tap the item → **Eaten or thrown away**. **Undo** is there
   for 5 seconds. **Change date** is on the same screen.
+- **Rename:** tap a dish's name on its screen (✏️) to change it, or tap
+  **My fridge** at the top to name your fridge. Enter or tapping elsewhere
+  saves; Escape keeps the old name.
 
 Everything (photos included) stays on the phone in IndexedDB. Works offline.
 Plain HTML/CSS/JS, no build step.

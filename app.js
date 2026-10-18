@@ -501,12 +501,102 @@ function openItem(item) {
   const photo = $('item-photo');
   photo.hidden = !item.photo;
   if (item.photo) photo.src = objectUrl(item.photo);
-  $('item-note').textContent = item.note || cat(item).label;
+  showName(item);
+  stopRename();
   showWhen(item);
   $('item-date').hidden = true;
   $('item-move').hidden = true;
   $('item-sheet').showModal();
 }
+
+function showName(item) {
+  $('item-note').textContent = item.note || cat(item).label;
+}
+
+// ---------- rename ----------
+
+// Tap a name to change it: the name turns into a text box. Enter, "Save name"
+// or tapping elsewhere saves; Escape keeps the old name.
+function editable({ shown, box, input, counter, saveBtn, max, start, commit }) {
+  let on = false;
+  const refresh = limit(input, counter, max);
+  const stop = () => {
+    on = false;
+    shown.hidden = false;
+    box.hidden = true;
+  };
+  const save = safely(async () => {
+    if (!on) return;
+    const value = clip(input.value.trim(), max);
+    stop();
+    await commit(value);
+  });
+  shown.querySelector('button').addEventListener('click', () => {
+    on = true;
+    start(input);
+    refresh();
+    shown.hidden = true;
+    box.hidden = false;
+    input.focus();
+    input.select();
+  });
+  saveBtn.addEventListener('click', save);
+  input.addEventListener('blur', save);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      save();
+    } else if (e.key === 'Escape') {
+      e.preventDefault(); // keep the sheet open
+      stop();
+    }
+  });
+  return { stop };
+}
+
+const itemRename = editable({
+  shown: $('item-name').closest('h2'),
+  box: $('item-rename'),
+  input: $('item-rename-input'),
+  counter: $('item-rename-count'),
+  saveBtn: $('item-rename-save'),
+  max: NOTE_MAX,
+  start: (input) => {
+    input.value = current.note;
+    input.placeholder = cat(current).example ?? cat(current).label;
+  },
+  commit: async (note) => {
+    if (note === current.note) return;
+    current.note = note;
+    showName(current);
+    await DB.put(current);
+    render();
+  },
+});
+const stopRename = () => itemRename.stop();
+
+// The fridge's own name, kept on this phone.
+const FRIDGE_MAX = 24;
+const fridgeName = () => recall('fridgeName') || 'My fridge';
+function showFridgeName() {
+  $('fridge-name-text').textContent = fridgeName();
+  // Long names get a slightly smaller title so they stay on one line.
+  $('fridge-name').closest('h1').classList.toggle('long', chars(fridgeName()).length > 14);
+}
+editable({
+  shown: $('fridge-name').closest('h1'),
+  box: $('fridge-rename'),
+  input: $('fridge-rename-input'),
+  counter: $('fridge-rename-count'),
+  saveBtn: $('fridge-rename-save'),
+  max: FRIDGE_MAX,
+  start: (input) => (input.value = recall('fridgeName') ?? ''),
+  commit: (name) => {
+    remember('fridgeName', name === 'My fridge' ? '' : name);
+    showFridgeName();
+  },
+});
+showFridgeName();
 
 function showWhen(item) {
   $('item-where').textContent = `${cat(item).icon} ${cat(item).label} · ${SHELVES[item.shelf] ?? SHELVES.middle}`;
