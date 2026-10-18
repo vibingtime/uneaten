@@ -16,7 +16,7 @@ a reminder pops up at 9:00 when something is due.
 - **Fridge:** the home screen is an open fridge with a top, middle and bottom
   shelf, a fruit & veg drawer and a door rack. Every item shows a plain-words badge, such as *3 days*,
   *Tomorrow*, *Today* or *Throw away*. Tap the light at the top to switch it
-  off and on.
+  on and off (it starts off).
 - **Move:** press and hold an item, then drag it to another shelf. **Move
   shelf** on the item's screen does the same thing.
 - **Done with it:** tap the item → **Eaten or thrown away**. **Undo** is there

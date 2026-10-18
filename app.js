@@ -587,7 +587,8 @@ $('toast-undo').addEventListener('click', () => {
 
 // ---------- fridge light ----------
 
-// Just for fun: tap the light to switch it off and on. Remembered per phone.
+// Just for fun: tap the light to switch it on and off. It starts off, and
+// the phone remembers if it was switched on.
 function setLight(on) {
   $('fridge').classList.toggle('light-off', !on);
   $('light').setAttribute('aria-pressed', String(on));
@@ -597,7 +598,7 @@ $('light').addEventListener('click', () => {
   setLight(on);
   remember('light', on ? 'on' : 'off');
 });
-setLight(recall('light') !== 'off');
+setLight(recall('light') === 'on');
 
 // ---------- reminders ----------
 
