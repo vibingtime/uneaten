@@ -2,6 +2,7 @@
 // same items when a reminder arrives.
 //   'uneaten'.items:            {id, photo: Blob|null, note, category, shelf, expires: 'YYYY-MM-DD', added: ms}
 //   'uneaten-kinds'.categories: {id, label, icon, keeps: 'days'|'weeks'|'months', shelf}  (the user's own kinds)
+//   'uneaten-sound'.sound:      {id: 'door', blob, name}  (the door sound the user chose)
 //
 // Each database is opened without asking for a newer version, so a copy of
 // the app still running in another tab can never block it. Changing a
@@ -46,6 +47,7 @@ globalThis.DB = (() => {
 
   const items = (mode, fn) => run('uneaten', 'items', mode, fn);
   const kinds = (mode, fn) => run('uneaten-kinds', 'categories', mode, fn);
+  const sound = (mode, fn) => run('uneaten-sound', 'sound', mode, fn);
 
   // A short-lived build kept kinds in the 'uneaten' database itself; read
   // those too so nothing saved then goes missing.
@@ -69,6 +71,8 @@ globalThis.DB = (() => {
       return [...mine, ...old.filter((c) => !ids.has(c.id))];
     },
     putCategory: (c) => kinds('readwrite', (s) => s.put(c)),
+    doorSound: () => sound('readonly', (s) => s.get('door')),
+    putDoorSound: (blob, name) => sound('readwrite', (s) => s.put({ id: 'door', blob, name })),
     removeCategory: async (id) => {
       await kinds('readwrite', (s) => s.delete(id));
       const db = await open('uneaten', 'items');

@@ -749,6 +749,7 @@ $('toast-undo').addEventListener('click', () => {
 function setDoor(open) {
   $('fridge').classList.toggle('closed', !open);
   $('fridge-door').tabIndex = open ? -1 : 0;
+  $('sound-btn').tabIndex = open ? -1 : 0;
   $('fridge-door').setAttribute('aria-hidden', String(open));
   // While closed, what is behind the door can't be tapped or reached.
   for (const part of $('fridge').querySelectorAll(':scope > .cabinet, :scope > .door')) part.inert = !open;
@@ -762,10 +763,115 @@ function showDoorNote() {
 }
 
 $('fridge-door').addEventListener('click', () => {
-  chime();
+  playDoorSound();
   setDoor(true);
 });
-$('door-close').addEventListener('click', () => setDoor(false));
+$('door-close').addEventListener('click', () => {
+  stopDoorSound();
+  setDoor(false);
+});
+
+// ---------- door sound ----------
+
+// What plays when the door opens: the built-in chime, a sound file the user
+// picked from their own phone (kept only on the phone, never uploaded), or
+// nothing.
+const SOUND_MAX_BYTES = 5 * 1024 * 1024;
+const soundMode = () => recall('doorSound') || 'chime';
+let customSound = null; // {audio, url, name}, ready to play straight from a tap
+
+async function loadCustomSound() {
+  try {
+    const saved = await DB.doorSound();
+    if (saved?.blob) useCustomSound(saved.blob, saved.name);
+  } catch {}
+}
+
+function useCustomSound(blob, name) {
+  if (customSound) URL.revokeObjectURL(customSound.url);
+  const url = URL.createObjectURL(blob);
+  const audio = new Audio(url);
+  audio.preload = 'auto';
+  customSound = { audio, url, name };
+}
+
+function playDoorSound() {
+  const mode = soundMode();
+  if (mode === 'off') return;
+  if (mode === 'custom' && customSound) {
+    // Called straight from the tap so phones allow the sound to play.
+    customSound.audio.currentTime = 0;
+    customSound.audio.play().catch(() => chime());
+    return;
+  }
+  chime();
+}
+
+function stopDoorSound() {
+  customSound?.audio.pause();
+}
+
+// Checks the browser can actually play a file before keeping it.
+function playable(url) {
+  return new Promise((resolve) => {
+    const a = new Audio();
+    const finish = (ok) => { clearTimeout(timer); a.removeAttribute('src'); resolve(ok); };
+    const timer = setTimeout(() => finish(false), 5000);
+    a.addEventListener('loadedmetadata', () => finish(true), { once: true });
+    a.addEventListener('error', () => finish(false), { once: true });
+    a.src = url;
+  });
+}
+
+function renderSoundSheet() {
+  const mode = soundMode();
+  pickOne($('sound-choices'), [['chime', '🎵 Built-in chime'], ['custom', '📁 My own sound'], ['off', '🔇 No sound']], mode, (m) => {
+    if (m === 'custom' && !customSound) return $('sound-input').click();
+    remember('doorSound', m);
+    renderSoundSheet();
+  });
+  $('sound-file').hidden = mode !== 'custom' || !customSound;
+  $('sound-file').textContent = customSound ? `Your sound: ${customSound.name}` : '';
+  $('sound-pick').hidden = mode !== 'custom';
+  $('sound-pick').textContent = customSound ? 'Choose a different file' : 'Choose a sound file';
+  $('sound-play').hidden = mode === 'off';
+}
+
+$('sound-btn').addEventListener('click', () => {
+  renderSoundSheet();
+  $('sound-sheet').showModal();
+});
+$('sound-pick').addEventListener('click', () => $('sound-input').click());
+$('sound-play').addEventListener('click', () => {
+  stopDoorSound();
+  playDoorSound();
+});
+$('sound-sheet').addEventListener('close', stopDoorSound);
+
+$('sound-input').addEventListener('change', safely(async () => {
+  const file = $('sound-input').files[0];
+  $('sound-input').value = '';
+  if (!file) return renderSoundSheet();
+  if (file.size > SOUND_MAX_BYTES) {
+    renderSoundSheet();
+    return toast('That sound file is too big. Pick one under 5 MB, a few seconds long.');
+  }
+  const url = URL.createObjectURL(file);
+  const ok = await playable(url);
+  URL.revokeObjectURL(url);
+  if (!ok) {
+    renderSoundSheet();
+    return toast('That file could not be played. Try an MP3 or M4A sound.');
+  }
+  await DB.putDoorSound(file, file.name);
+  useCustomSound(file, file.name);
+  remember('doorSound', 'custom');
+  renderSoundSheet();
+  playDoorSound(); // let them hear it
+  toast('Door sound saved');
+}));
+$('sound-input').addEventListener('cancel', renderSoundSheet);
+loadCustomSound();
 
 // An original, cheerful door chime (a rising bell arpeggio), synthesized so
 // there is no sound file to download. Plays only from a tap, as browsers
