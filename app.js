@@ -749,7 +749,6 @@ $('toast-undo').addEventListener('click', () => {
 function setDoor(open) {
   $('fridge').classList.toggle('closed', !open);
   $('fridge-door').tabIndex = open ? -1 : 0;
-  $('sound-btn').tabIndex = open ? -1 : 0;
   $('fridge-door').setAttribute('aria-hidden', String(open));
   // While closed, what is behind the door can't be tapped or reached.
   for (const part of $('fridge').querySelectorAll(':scope > .cabinet, :scope > .door')) part.inert = !open;
@@ -837,16 +836,61 @@ function renderSoundSheet() {
   $('sound-play').hidden = mode === 'off';
 }
 
-$('sound-btn').addEventListener('click', () => {
+// ---------- settings ----------
+
+$('settings-btn').addEventListener('click', () => {
   renderSoundSheet();
-  $('sound-sheet').showModal();
+  renderColors();
+  $('settings-sheet').showModal();
 });
 $('sound-pick').addEventListener('click', () => $('sound-input').click());
 $('sound-play').addEventListener('click', () => {
   stopDoorSound();
   playDoorSound();
 });
-$('sound-sheet').addEventListener('close', stopDoorSound);
+$('settings-sheet').addEventListener('close', stopDoorSound);
+
+// ---------- door color ----------
+
+// The door (closed and open) and the fridge's frame follow one color; shades
+// for the shine and edges are mixed from it in CSS. Kept on this phone.
+const DEFAULT_DOOR = '#dde4e7';
+const DOOR_COLORS = [
+  ['#dde4e7', 'Classic steel'], ['#f7f7f4', 'White'], ['#2c3135', 'Black'], ['#c8323c', 'Red'],
+  ['#a8dcc5', 'Mint'], ['#a9cfee', 'Sky blue'], ['#f3e3a1', 'Butter yellow'], ['#f2b8c6', 'Pink'],
+];
+const doorColor = () => (/^#[0-9a-f]{6}$/i.test(recall('doorColor') ?? '') ? recall('doorColor').toLowerCase() : DEFAULT_DOOR);
+
+function applyDoorColor(hex) {
+  document.documentElement.style.setProperty('--door', hex);
+}
+
+function setDoorColor(hex) {
+  remember('doorColor', hex);
+  applyDoorColor(hex);
+  renderColors();
+}
+
+function renderColors() {
+  const current = doorColor();
+  $('door-swatches').replaceChildren(...DOOR_COLORS.map(([hex, name]) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'swatch';
+    b.style.background = hex;
+    b.setAttribute('aria-label', name);
+    b.title = name;
+    b.setAttribute('aria-pressed', String(hex === current));
+    b.addEventListener('click', () => setDoorColor(hex));
+    return b;
+  }));
+  $('door-color-input').value = current;
+}
+
+// The color picker updates the door live while it is being dragged.
+$('door-color-input').addEventListener('input', (e) => applyDoorColor(e.target.value));
+$('door-color-input').addEventListener('change', (e) => setDoorColor(e.target.value.toLowerCase()));
+applyDoorColor(doorColor());
 
 $('sound-input').addEventListener('change', safely(async () => {
   const file = $('sound-input').files[0];

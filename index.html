@@ -19,6 +19,9 @@
 <body>
 
 <header>
+  <button type="button" id="settings-btn" class="settings-btn" aria-label="Settings" aria-haspopup="dialog">
+    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
   <!-- Tap the title to name the fridge. -->
   <h1 class="fridge-title">
     <button type="button" id="fridge-name" class="name-btn">
@@ -63,7 +66,6 @@
       <span class="door-grip" aria-hidden="true"></span>
       <span class="magnet"><span id="door-count"></span><small>Tap to open</small></span>
     </button>
-    <button type="button" id="sound-btn" class="sound-btn"><span aria-hidden="true">🔔</span> Door sound</button>
     <div class="cabinet">
       <button type="button" id="light" class="light" aria-label="Fridge light" aria-pressed="false"><span></span></button>
       <div class="rack shelf" data-shelf="top"><h2 class="rack-label">Top shelf</h2><ul class="rack-items"></ul></div>
@@ -199,15 +201,34 @@
   </div>
 </dialog>
 
-<dialog id="sound-sheet" class="sheet" aria-labelledby="sound-title">
-  <h2 id="sound-title">Door sound</h2>
-  <p class="sheet-help">What plays when you open the fridge door.</p>
-  <div class="chips sound-choices" id="sound-choices"></div>
-  <p id="sound-file" class="sound-file" hidden></p>
-  <button type="button" id="sound-pick" class="btn btn-secondary" hidden>Choose a sound file</button>
-  <p class="sheet-help small">Your own sound stays on this phone only; it is never uploaded.</p>
+<dialog id="settings-sheet" class="sheet" aria-labelledby="settings-title">
+  <h2 id="settings-title">Settings</h2>
+
+  <section class="setting" aria-labelledby="sound-title">
+    <h3 id="sound-title">Door sound</h3>
+    <p class="sheet-help">What plays when you open the fridge door.</p>
+    <div class="chips sound-choices" id="sound-choices"></div>
+    <p id="sound-file" class="sound-file" hidden></p>
+    <div class="row-buttons">
+      <button type="button" id="sound-pick" class="btn btn-secondary" hidden>Choose a sound file</button>
+      <button type="button" id="sound-play" class="btn btn-secondary">▶ Play</button>
+    </div>
+    <p class="sheet-help small">Your own sound stays on this phone only; it is never uploaded.</p>
+  </section>
+
+  <section class="setting" aria-labelledby="color-title">
+    <h3 id="color-title">Door color</h3>
+    <div class="color-row">
+      <div class="door-preview" aria-hidden="true"><span></span></div>
+      <div class="swatches" id="door-swatches"></div>
+    </div>
+    <label class="color-pick">
+      <span>Pick any color</span>
+      <input id="door-color-input" type="color" value="#dde4e7">
+    </label>
+  </section>
+
   <div class="sheet-actions">
-    <button type="button" id="sound-play" class="btn btn-secondary">▶ Play</button>
     <button type="button" class="btn btn-primary btn-big" data-close>Done</button>
   </div>
 </dialog>
