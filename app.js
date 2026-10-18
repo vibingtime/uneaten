@@ -4,21 +4,41 @@
 const $ = (id) => document.getElementById(id);
 const cfg = globalThis.UNEATEN_CONFIG || {};
 
-const CHOICES = [
-  ['Tomorrow', 1],
-  ['3 days', 3],
-  ['5 days', 5],
-  ['1 week', 7],
-];
-const DEFAULT_DAYS = 3;
+// How long a kind of food usually keeps decides which expiry choices it offers.
+const KEEPS = {
+  days: { label: 'A few days', days: 3, choices: [['Tomorrow', 1], ['3 days', 3], ['5 days', 5], ['1 week', 7]] },
+  weeks: { label: 'A few weeks', days: 14, choices: [['1 week', 7], ['2 weeks', 14], ['1 month', 30], ['2 months', 60]] },
+  months: { label: 'Months', days: 30, choices: [['1 month', 30], ['2 months', 60], ['3 months', 91], ['6 months', 182]] },
+};
+// Kinds every fridge starts with. The user's own kinds are added from the DB.
+const BUILT_IN = {
+  leftovers: { id: 'leftovers', label: 'Leftovers', icon: '🍲', keeps: 'days', shelf: 'middle', example: 'Biryani' },
+  sauces: { id: 'sauces', label: 'Dips & sauces', icon: '🥫', keeps: 'weeks', shelf: 'door', example: 'Garlic mayo' },
+};
+const ICONS = ['🧀', '🥛', '🥚', '🥗', '🍎', '🥕', '🍰', '🍕', '🍗', '🐟', '🍚', '🧃', '🍫', '🥣', '🍲', '🥫'];
+
+// Name limits, counted as a person sees them: an emoji is one character.
+const NOTE_MAX = 40;
+const KIND_MAX = 20;
+const segmenter = globalThis.Intl?.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+const chars = (text) => (segmenter ? [...segmenter.segment(text)].map((x) => x.segment) : [...text]);
+const clip = (text, max) => chars(text).slice(0, max).join('');
+const SHELVES = { top: 'Top shelf', middle: 'Middle shelf', bottom: 'Bottom shelf', door: 'Door' };
 
 let items = [];
+let kinds = { ...BUILT_IN };
 let urls = [];
 
-// ---------- list ----------
+const cat = (item) => kinds[item.category] ?? kinds.leftovers;
+const keepsOf = (c) => KEEPS[c.keeps] ?? KEEPS.days;
+
+// ---------- fridge ----------
 
 async function load() {
-  items = await DB.all();
+  // Items saved before shelves and categories existed go on the middle shelf.
+  items = (await DB.all()).map((i) => ({ category: 'leftovers', shelf: 'middle', ...i }));
+  kinds = { ...BUILT_IN };
+  for (const c of await DB.categories()) kinds[c.id] = c;
   render();
 }
 
@@ -28,19 +48,9 @@ function render() {
 
   const today = Dates.today();
   const sorted = [...items].sort((a, b) => a.expires.localeCompare(b.expires) || a.added - b.added);
-  const list = $('list');
-  list.replaceChildren();
-
-  for (const item of sorted) {
-    const days = Dates.daysLeft(item.expires, today);
-    const li = document.createElement('li');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'item';
-    btn.append(thumb(item), text(item, days));
-    btn.addEventListener('click', () => openItem(item));
-    li.append(btn);
-    list.append(li);
+  for (const rack of document.querySelectorAll('.rack')) {
+    const here = sorted.filter((i) => (SHELVES[i.shelf] ? i.shelf : 'middle') === rack.dataset.shelf);
+    rack.querySelector('.rack-items').replaceChildren(...here.map((i) => tile(i, today)));
   }
 
   const expired = items.filter((i) => Dates.daysLeft(i.expires, today) < 0).length;
@@ -49,32 +59,48 @@ function render() {
     ? '1 thing is past its date. Throw it away.'
     : `${expired} things are past their date. Throw them away.`;
   $('empty').hidden = items.length > 0;
+  $('drag-hint').hidden = !(items.length >= 2 && !seen('dragHint'));
   renderOffer();
+}
+
+function tile(item, today) {
+  const days = Dates.daysLeft(item.expires, today);
+  const li = document.createElement('li');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = `tile ${Dates.status(days)}`;
+  btn.setAttribute('aria-label', `${item.note || cat(item).label}, ${Dates.label(days)}`);
+  const name = document.createElement('span');
+  name.className = 'tile-name';
+  name.textContent = item.note || cat(item).label;
+  const when = document.createElement('span');
+  when.className = `tile-when ${Dates.status(days)}`;
+  when.textContent = Dates.short(days);
+  btn.append(thumb(item), name, when);
+  btn.addEventListener('click', () => {
+    if (dragJustEnded) return;
+    openItem(item);
+  });
+  btn.addEventListener('pointerdown', (e) => press(e, item, btn));
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  li.append(btn);
+  return li;
 }
 
 function thumb(item) {
   if (!item.photo) {
     const span = document.createElement('span');
     span.className = 'thumb';
-    span.textContent = '🍲';
+    span.textContent = cat(item).icon;
     span.setAttribute('aria-hidden', 'true');
     return span;
   }
   const img = document.createElement('img');
   img.className = 'thumb';
   img.alt = '';
+  img.draggable = false;
   img.src = objectUrl(item.photo);
   return img;
-}
-
-function text(item, days) {
-  const wrap = document.createElement('span');
-  wrap.className = 'item-text';
-  const note = document.createElement('span');
-  note.className = 'item-note';
-  note.textContent = item.note || 'Leftovers';
-  wrap.append(note, badge(days));
-  return wrap;
 }
 
 function badge(days) {
@@ -90,42 +116,138 @@ function objectUrl(blob) {
   return u;
 }
 
-// ---------- chips (shared by "add" and "change date") ----------
+// Tiny per-phone memory (last shelf used, hints seen). Losing it costs nothing.
+function remember(key, value) {
+  try { localStorage.setItem(key, value); } catch {}
+}
+function recall(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+const seen = (key) => recall(key) === '1';
 
-// Builds the quick-pick chips plus a "Pick date" chip that reveals a date
-// input. onPick(iso) fires on every choice.
-function chips(container, onPick, selectedDays) {
+// ---------- drag between shelves ----------
+
+// Press and hold a tile, then drag it onto another shelf. A quick tap still
+// opens the item, and moving early is treated as scrolling the page.
+const HOLD_MS = 350;
+let pressing = null;
+let dragging = null;
+let dragJustEnded = false;
+
+function press(e, item, btn) {
+  if (e.button > 0 || dragging) return;
+  pressing = {
+    item, btn, x: e.clientX, y: e.clientY,
+    timer: setTimeout(() => lift(e.clientX, e.clientY), HOLD_MS),
+  };
+}
+
+function lift(x, y) {
+  const { item, btn } = pressing;
+  pressing = null;
+  const box = btn.getBoundingClientRect();
+  const ghost = btn.cloneNode(true);
+  ghost.classList.add('ghost');
+  ghost.style.width = `${box.width}px`;
+  document.body.append(ghost);
+  dragging = { item, btn, ghost, dx: x - box.left, dy: y - box.top };
+  btn.classList.add('lifted');
+  document.body.classList.add('dragging');
+  navigator.vibrate?.(15);
+  follow(x, y);
+}
+
+function follow(x, y) {
+  const { ghost, dx, dy } = dragging;
+  ghost.style.transform = `translate(${x - dx}px, ${y - dy}px) scale(1.08)`;
+  const over = rackAt(x, y);
+  for (const r of document.querySelectorAll('.rack')) r.classList.toggle('drop', r === over);
+}
+
+function rackAt(x, y) {
+  return document.elementFromPoint(x, y)?.closest('.rack') ?? null;
+}
+
+function endDrag(x, y) {
+  const { item, btn, ghost } = dragging;
+  dragging = null;
+  ghost.remove();
+  btn.classList.remove('lifted');
+  document.body.classList.remove('dragging');
+  for (const r of document.querySelectorAll('.rack')) r.classList.remove('drop');
+  // The browser follows pointerup with a click; don't let it open the item.
+  dragJustEnded = true;
+  setTimeout(() => (dragJustEnded = false), 50);
+  const to = x == null ? null : rackAt(x, y)?.dataset.shelf;
+  if (to && to !== item.shelf) moveTo(item, to);
+}
+
+function cancelPress() {
+  if (pressing) clearTimeout(pressing.timer);
+  pressing = null;
+}
+
+document.addEventListener('pointermove', (e) => {
+  if (dragging) return follow(e.clientX, e.clientY);
+  if (pressing && Math.hypot(e.clientX - pressing.x, e.clientY - pressing.y) > 10) cancelPress();
+});
+document.addEventListener('pointerup', (e) => {
+  if (dragging) endDrag(e.clientX, e.clientY);
+  else cancelPress();
+});
+document.addEventListener('pointercancel', () => {
+  if (dragging) endDrag(null, null);
+  else cancelPress();
+});
+// Once an item is lifted, a finger moving must drag it, not scroll the page.
+document.addEventListener('touchmove', (e) => dragging && e.preventDefault(), { passive: false });
+
+async function moveTo(item, shelf) {
+  const from = item.shelf;
+  item.shelf = shelf;
+  await DB.put(item);
+  remember('dragHint', '1');
+  render();
+  toast(`Moved to ${SHELVES[shelf].toLowerCase().replace('door', 'the door')}`, async () => {
+    item.shelf = from;
+    await DB.put(item);
+    render();
+  });
+}
+
+// ---------- chips ----------
+
+// One-of-many buttons. options: [[value, label], ...]; onPick(value).
+function pickOne(container, options, selected, onPick) {
   container.replaceChildren();
-  const all = [];
-  const select = (btn) => all.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
-
-  for (const [label, days] of CHOICES) {
+  const all = options.map(([value, label]) => {
     const b = chip(label);
-    if (days === selectedDays) b.setAttribute('aria-pressed', 'true');
+    b.setAttribute('aria-pressed', String(value === selected));
     b.addEventListener('click', () => {
-      select(b);
-      date.hidden = true;
-      onPick(Dates.addDays(Dates.today(), days));
+      all.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      onPick(value);
     });
-    all.push(b);
-  }
+    return b;
+  });
+  container.append(...all);
+}
 
-  const pick = chip('Pick date');
+// Expiry quick picks plus a "Pick date" chip that reveals a date input.
+// onPick(iso) fires on every choice.
+function dateChips(container, choices, onPick, selectedDays, fallbackDays) {
+  pickOne(container, [...choices.map(([label, days]) => [days, label]), ['pick', 'Pick date']], selectedDays, (v) => {
+    date.hidden = v !== 'pick';
+    if (v !== 'pick') return onPick(Dates.addDays(Dates.today(), v));
+    date.value ||= Dates.addDays(Dates.today(), fallbackDays);
+    date.showPicker?.();
+  });
   const date = document.createElement('input');
   date.type = 'date';
   date.hidden = true;
   date.min = Dates.today();
   date.setAttribute('aria-label', 'Expiry date');
-  pick.addEventListener('click', () => {
-    select(pick);
-    date.hidden = false;
-    date.value ||= Dates.addDays(Dates.today(), DEFAULT_DAYS);
-    date.showPicker?.();
-  });
   date.addEventListener('change', () => date.value && onPick(date.value));
-  all.push(pick);
-
-  container.append(...all, date);
+  container.append(date);
 }
 
 function chip(label) {
@@ -137,40 +259,151 @@ function chip(label) {
   return b;
 }
 
+const shelfOptions = Object.entries(SHELVES);
+
+// Stops a text box at `max` characters (typed or pasted) and shows a small
+// "34/40" counter once the end is near.
+function limit(input, counter, max) {
+  const update = () => {
+    if (chars(input.value).length > max) input.value = clip(input.value, max);
+    const n = chars(input.value).length;
+    counter.hidden = n < max - 10;
+    counter.textContent = `${n}/${max}`;
+  };
+  input.addEventListener('input', update);
+  return update;
+}
+const refreshNoteCount = limit($('add-note'), $('add-note-count'), NOTE_MAX);
+const refreshKindCount = limit($('kind-name'), $('kind-name-count'), KIND_MAX);
+
 // ---------- add ----------
 
-const draft = { photo: null, expires: null };
+const draft = { photo: null, category: 'leftovers', shelf: 'middle', expires: null };
 let previewUrl = null;
 
 $('add').addEventListener('click', () => {
   resetDraft();
-  // Straight to the camera. Whether a photo comes back or the camera is
-  // dismissed, the sheet opens so a note-only entry is still possible.
-  $('camera').click();
+  $('add-sheet').showModal();
 });
 
-$('add-photo').addEventListener('click', () => $('camera').click());
+$('pick-camera').addEventListener('click', () => $('camera').click());
+$('pick-gallery').addEventListener('click', () => $('gallery').click());
+$('photo-change').addEventListener('click', () => setPhoto(null));
 
-$('camera').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (file) {
+for (const input of [$('camera'), $('gallery')]) {
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
     try {
       setPhoto(await shrink(file));
     } catch {
-      setPhoto(null);
+      toast('That picture could not be opened. Try another one.');
     }
-  }
-  showAddSheet();
-});
-$('camera').addEventListener('cancel', showAddSheet);
+  });
+}
 
 function resetDraft() {
-  draft.expires = Dates.addDays(Dates.today(), DEFAULT_DAYS);
   setPhoto(null);
   $('add-note').value = '';
-  chips($('add-chips'), (iso) => (draft.expires = iso), DEFAULT_DAYS);
+  refreshNoteCount();
+  closeKindForm();
+  setCategory('leftovers');
 }
+
+// The kind chips: built-in kinds, the user's own, and "+ New kind".
+function renderKinds() {
+  const options = Object.values(kinds).map((c) => [c.id, `${c.icon} ${c.label}`]);
+  pickOne($('add-category'), [...options, ['new', '+ New kind']], draft.category, (key) => {
+    if (key === 'new') openKindForm(null);
+    else setCategory(key);
+  });
+  $('kind-edit').hidden = Boolean(BUILT_IN[draft.category]) || !$('kind-form').hidden;
+}
+
+// Switching kind resets the shelf and expiry to what suits that kind.
+function setCategory(key) {
+  const c = kinds[key] ?? kinds.leftovers;
+  const k = keepsOf(c);
+  closeKindForm();
+  draft.category = c.id;
+  draft.shelf = SHELVES[recall(`shelf:${c.id}`)] ? recall(`shelf:${c.id}`) : c.shelf;
+  draft.expires = Dates.addDays(Dates.today(), k.days);
+  $('add-note').placeholder = c.example ?? '';
+  renderKinds();
+  pickOne($('add-shelf'), shelfOptions, draft.shelf, (s) => (draft.shelf = s));
+  dateChips($('add-chips'), k.choices, (iso) => (draft.expires = iso), k.days, k.days);
+}
+
+// ---------- your own kinds ----------
+
+const kindDraft = { id: null, icon: ICONS[0], keeps: 'days', shelf: 'middle' };
+
+function openKindForm(c) {
+  Object.assign(kindDraft, c ? { id: c.id, icon: c.icon, keeps: c.keeps, shelf: c.shelf }
+    : { id: null, icon: ICONS[0], keeps: 'days', shelf: 'middle' });
+  $('kind-title').textContent = c ? 'Edit kind' : 'New kind';
+  $('kind-save').textContent = c ? 'Save kind' : 'Add kind';
+  $('kind-delete').hidden = !c;
+  $('kind-error').hidden = true;
+  $('kind-name').value = c?.label ?? '';
+  refreshKindCount();
+  pickOne($('kind-icon'), ICONS.map((i) => [i, i]), kindDraft.icon, (i) => (kindDraft.icon = i));
+  pickOne($('kind-keeps'), Object.entries(KEEPS).map(([k, v]) => [k, v.label]), kindDraft.keeps, (k) => (kindDraft.keeps = k));
+  pickOne($('kind-shelf'), shelfOptions, kindDraft.shelf, (s) => (kindDraft.shelf = s));
+  $('kind-form').hidden = false;
+  $('kind-edit').hidden = true;
+  // One obvious next step: finish the kind before saving the item.
+  $('add-actions').hidden = true;
+  $('kind-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  $('kind-name').focus({ preventScroll: true });
+}
+
+function closeKindForm() {
+  $('kind-form').hidden = true;
+  $('add-actions').hidden = false;
+}
+
+$('kind-edit').addEventListener('click', () => openKindForm(kinds[draft.category]));
+$('kind-cancel').addEventListener('click', () => setCategory(draft.category));
+// Enter in the name box saves the kind, not the whole item.
+$('kind-name').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  $('kind-save').click();
+});
+
+$('kind-save').addEventListener('click', async () => {
+  const label = clip($('kind-name').value.trim(), KIND_MAX);
+  const clash = Object.values(kinds).find((c) => c.id !== kindDraft.id && c.label.toLowerCase() === label.toLowerCase());
+  $('kind-error').textContent = !label ? 'Give it a name first.' : clash ? `You already have “${clash.label}”.` : '';
+  $('kind-error').hidden = !$('kind-error').textContent;
+  if (!$('kind-error').hidden) return;
+  const c = {
+    id: kindDraft.id ?? `k-${Date.now().toString(36)}`,
+    label, icon: kindDraft.icon, keeps: kindDraft.keeps, shelf: kindDraft.shelf,
+  };
+  await DB.putCategory(c);
+  kinds[c.id] = c;
+  remember(`shelf:${c.id}`, c.shelf);
+  setCategory(c.id);
+  render();
+});
+
+$('kind-delete').addEventListener('click', async () => {
+  const c = kinds[kindDraft.id];
+  const using = items.filter((i) => i.category === c.id);
+  const what = using.length === 1 ? '1 item' : `${using.length} items`;
+  if (!confirm(`Delete “${c.label}”?${using.length ? ` ${what} will become Leftovers.` : ''}`)) return;
+  for (const i of using) {
+    i.category = 'leftovers';
+    await DB.put(i);
+  }
+  await DB.removeCategory(c.id);
+  delete kinds[c.id];
+  setCategory('leftovers');
+  render();
+});
 
 function setPhoto(blob) {
   draft.photo = blob;
@@ -178,11 +411,8 @@ function setPhoto(blob) {
   previewUrl = blob ? URL.createObjectURL(blob) : null;
   $('add-preview').hidden = !blob;
   $('add-preview').src = previewUrl || '';
-  $('add-photo-hint').hidden = !!blob;
-}
-
-function showAddSheet() {
-  if (!$('add-sheet').open) $('add-sheet').showModal();
+  $('photo-buttons').hidden = !!blob;
+  $('photo-change').hidden = !blob;
 }
 
 $('add-form').addEventListener('submit', async (e) => {
@@ -190,12 +420,15 @@ $('add-form').addEventListener('submit', async (e) => {
   const item = {
     id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     photo: draft.photo,
-    note: $('add-note').value.trim(),
+    note: clip($('add-note').value.trim(), NOTE_MAX),
+    category: draft.category,
+    shelf: draft.shelf,
     expires: draft.expires,
     added: Date.now(),
   };
   await DB.put(item);
   items.push(item);
+  remember(`shelf:${item.category}`, item.shelf);
   $('add-sheet').close();
   render();
   changed();
@@ -230,22 +463,23 @@ function openItem(item) {
   const photo = $('item-photo');
   photo.hidden = !item.photo;
   if (item.photo) photo.src = objectUrl(item.photo);
-  $('item-note').textContent = item.note || 'Leftovers';
+  $('item-note').textContent = item.note || cat(item).label;
   showWhen(item);
   $('item-date').hidden = true;
-  $('item-change').hidden = false;
+  $('item-move').hidden = true;
   $('item-sheet').showModal();
 }
 
 function showWhen(item) {
-  const when = $('item-when');
-  when.replaceChildren(`Eat by ${Dates.longDate(item.expires)}`, badge(Dates.daysLeft(item.expires)));
+  $('item-where').textContent = `${cat(item).icon} ${cat(item).label} · ${SHELVES[item.shelf] ?? SHELVES.middle}`;
+  $('item-when').replaceChildren(`Eat by ${Dates.longDate(item.expires)}`, badge(Dates.daysLeft(item.expires)));
 }
 
 $('item-change').addEventListener('click', () => {
-  $('item-change').hidden = true;
+  $('item-move').hidden = true;
   $('item-date').hidden = false;
-  chips($('item-chips'), async (iso) => {
+  const k = keepsOf(cat(current));
+  dateChips($('item-chips'), k.choices, async (iso) => {
     current.expires = iso;
     await DB.put(current);
     showWhen(current);
@@ -253,6 +487,15 @@ $('item-change').addEventListener('click', () => {
     changed();
     // A quick-pick chip is a final answer; a typed date may still be fiddled with.
     if (document.activeElement?.type !== 'date') $('item-sheet').close();
+  }, null, k.days);
+});
+
+$('item-relocate').addEventListener('click', () => {
+  $('item-date').hidden = true;
+  $('item-move').hidden = false;
+  pickOne($('item-shelf'), shelfOptions, current.shelf, (shelf) => {
+    $('item-sheet').close();
+    if (shelf !== current.shelf) moveTo(current, shelf);
   });
 });
 
@@ -263,7 +506,7 @@ $('item-done').addEventListener('click', async () => {
   items = items.filter((i) => i.id !== gone.id);
   render();
   changed();
-  toast(`Removed ${gone.note || 'leftovers'}`, async () => {
+  toast(`Removed ${gone.note || cat(gone).label.toLowerCase()}`, async () => {
     await DB.put(gone);
     items.push(gone);
     render();

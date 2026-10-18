@@ -15,6 +15,15 @@
   --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.06);
   --radius: 20px;
   --tap: 56px;
+  /* fridge */
+  --steel-1: #f4f7f8;
+  --steel-2: #d9e1e5;
+  --steel-edge: #b9c5cb;
+  --inside-1: #ffffff;
+  --inside-2: #e6f1f6;
+  --glass: rgb(170 210 230 / 0.55);
+  --glass-edge: rgb(120 170 195 / 0.9);
+  --tile: #ffffff;
   color-scheme: light dark;
 }
 
@@ -34,6 +43,14 @@
     --bad-bg: #44191a;
     --bad-ink: #ffb0a8;
     --shadow: none;
+    --steel-1: #3a4347;
+    --steel-2: #262d31;
+    --steel-edge: #4d585e;
+    --inside-1: #e9f2f6;
+    --inside-2: #b9cfd9;
+    --glass: rgb(120 170 195 / 0.45);
+    --glass-edge: rgb(90 140 165 / 0.9);
+    --tile: #ffffff;
   }
 }
 
@@ -57,40 +74,219 @@ h2 { font-size: 24px; margin: 0 0 12px; }
 
 button { font: inherit; color: inherit; cursor: pointer; }
 
-/* ---------- list ---------- */
+/* ---------- fridge ---------- */
 
-#list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-
-.item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  min-height: 96px;
-  padding: 10px;
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--card);
-  box-shadow: var(--shadow);
-  text-align: left;
-  transition: transform 0.12s ease;
+#fridge {
+  display: grid;
+  grid-template-columns: 1fr 104px;
+  gap: 8px;
+  align-items: stretch;
+  margin-top: 4px;
 }
-.item:active { transform: scale(0.98); }
+
+/* The cabinet: brushed-steel shell around a lit, cool interior. */
+.cabinet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px 10px;
+  border-radius: 26px;
+  border: 10px solid var(--steel-2);
+  background:
+    radial-gradient(120% 40% at 50% 0%, rgb(255 255 255 / 0.95), transparent 70%),
+    linear-gradient(180deg, var(--inside-1), var(--inside-2));
+  box-shadow:
+    inset 0 2px 12px rgb(0 40 60 / 0.15),
+    0 0 0 1px var(--steel-edge),
+    0 10px 30px rgb(0 0 0 / 0.12);
+  min-height: 62dvh;
+}
+/* The little light at the top of the cabinet. */
+.cabinet::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  width: 44px;
+  height: 6px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #fffbe6;
+  box-shadow: 0 0 18px 6px rgb(255 248 214 / 0.9);
+}
+
+.rack { position: relative; border-radius: 14px; transition: background 0.15s, box-shadow 0.15s; }
+
+.shelf {
+  flex: 1 0 auto;
+  padding: 6px 4px 14px;
+  min-height: 118px;
+}
+/* A pane of glass with a bright front edge. */
+.shelf::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: 0;
+  height: 9px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, var(--glass), rgb(255 255 255 / 0.3));
+  border-bottom: 3px solid var(--glass-edge);
+  box-shadow: 0 6px 10px -6px rgb(0 40 60 / 0.35);
+}
+
+.rack-label {
+  margin: 0 0 6px 4px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #4f6b78;
+}
+
+.rack-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px 6px;
+  align-items: end;
+}
+
+.crisper {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+.crisper span {
+  height: 46px;
+  border-radius: 10px 10px 16px 16px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.6), rgb(190 220 232 / 0.6));
+  border: 2px solid var(--glass-edge);
+  border-top-width: 6px;
+}
+
+/* The open door, swung out to the right, with deep bins for jars. */
+.door {
+  position: relative;
+  border-radius: 22px 26px 26px 22px;
+  padding: 12px 8px;
+  background: linear-gradient(90deg, var(--steel-2), var(--steel-1) 30%, var(--steel-2));
+  box-shadow: 0 0 0 1px var(--steel-edge), 0 10px 30px rgb(0 0 0 / 0.12);
+}
+.door::before { /* handle */
+  content: "";
+  position: absolute;
+  right: 4px;
+  top: 30%;
+  width: 6px;
+  height: 22%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #9aa8ae, #e9eef0, #9aa8ae);
+}
+.door-rack {
+  height: 100%;
+  padding: 6px 6px 8px;
+  background: linear-gradient(180deg, var(--inside-1), var(--inside-2));
+  box-shadow: inset 0 2px 10px rgb(0 40 60 / 0.15);
+  border-radius: 16px;
+}
+.door-rack .rack-items { grid-template-columns: 1fr; gap: 14px; }
+/* Each door item sits in a bin: a see-through front lip along its bottom edge,
+   kept below the text so names stay readable. */
+.door-rack .rack-items li { position: relative; padding-bottom: 10px; }
+.door-rack .tile { padding-bottom: 14px; }
+.door-rack .rack-items li::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  bottom: 0;
+  height: 22px;
+  border-radius: 4px 4px 10px 10px;
+  background: var(--glass);
+  border: 2px solid var(--glass-edge);
+  border-top-width: 4px;
+  pointer-events: none;
+}
+
+/* While dragging, every rack shows it can take the item. */
+body.dragging .rack { box-shadow: inset 0 0 0 2px rgb(31 122 77 / 0.25); }
+body.dragging .rack.drop { background: rgb(31 122 77 / 0.14); box-shadow: inset 0 0 0 3px var(--brand); }
+
+/* ---------- tiles ---------- */
+
+.tile {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 6px 4px 6px;
+  border: 0;
+  border-radius: 14px;
+  background: var(--tile);
+  color: #15201a;
+  box-shadow: 0 2px 6px rgb(0 40 60 / 0.18);
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: transform 0.12s ease, opacity 0.12s;
+}
+.tile:active { transform: scale(0.96); }
+.tile.lifted { opacity: 0.3; }
+.tile.ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 16px 30px rgb(0 0 0 / 0.3);
+  transition: none;
+}
 
 .thumb {
-  flex: none;
-  width: 76px;
-  height: 76px;
-  border-radius: 14px;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
   object-fit: cover;
-  background: var(--line);
+  background: #edf2f0;
   display: grid;
   place-items: center;
   font-size: 34px;
+  border: 3px solid transparent;
 }
+.tile.soon .thumb { border-color: #f0b429; }
+.tile.expired .thumb { border-color: #d64545; }
 
-.item-text { min-width: 0; display: grid; gap: 6px; }
-.item-note { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Up to two lines, then "…"; long words break rather than spill. The full
+   name is on the item screen and in the tile's aria-label. */
+.tile-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+}
+.tile-when {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 800;
+}
+.tile-when.ok { background: #e2f3e8; color: #155c38; }
+.tile-when.soon { background: #fff1cc; color: #7a4b00; }
+.tile-when.expired { background: #fde3e1; color: #9b1c13; }
 
 .badge {
   justify-self: start;
@@ -103,8 +299,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .badge.soon { background: var(--soon-bg); color: var(--soon-ink); }
 .badge.expired { background: var(--bad-bg); color: var(--bad-ink); }
 
-#empty { text-align: center; color: var(--muted); margin-top: 18vh; }
-.empty-big { font-size: 24px; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
+#empty, .hint { text-align: center; color: var(--muted); margin: 0 0 12px; }
+#empty { font-size: 20px; color: var(--ink); }
+.hint { font-size: 16px; }
 
 /* ---------- banners ---------- */
 
@@ -173,11 +370,21 @@ button { font: inherit; color: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) { .sheet[open] { animation: none; } }
 
 .sheet-actions { display: grid; gap: 8px; margin-top: 20px; }
+.sheet-actions.sticky {
+  position: sticky;
+  bottom: calc(-20px - env(safe-area-inset-bottom));
+  margin: 20px -20px calc(-20px - env(safe-area-inset-bottom));
+  padding: 12px 20px calc(12px + env(safe-area-inset-bottom));
+  background: var(--card);
+  box-shadow: 0 -8px 16px -12px rgb(0 0 0 / 0.3);
+}
+.sheet-actions[hidden] { display: none; }
+.sheet-actions .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 .photo-slot {
   width: 100%;
   aspect-ratio: 4 / 3;
-  max-height: 34dvh;
+  max-height: 30dvh;
   border: 2px dashed var(--line);
   border-radius: var(--radius);
   background: var(--bg);
@@ -187,7 +394,32 @@ button { font: inherit; color: inherit; cursor: pointer; }
   overflow: hidden;
   padding: 0;
 }
+.photo-slot { position: relative; }
 .photo-slot img { width: 100%; height: 100%; object-fit: cover; }
+.photo-slot img[hidden], .photo-buttons[hidden], .photo-change[hidden] { display: none; }
+.photo-buttons { display: grid; gap: 10px; width: 100%; padding: 16px; }
+.photo-btn {
+  min-height: 60px;
+  border: 0;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-size: 19px;
+  font-weight: 700;
+}
+.photo-btn span { font-size: 24px; margin-right: 6px; vertical-align: -2px; }
+.photo-change {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  min-height: 48px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-weight: 700;
+}
 
 .field { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; border: 0; }
 .field > span, .field legend { font-weight: 700; padding: 0; margin-bottom: 8px; }
@@ -207,6 +439,10 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   min-height: 52px;
   padding: 0 18px;
   border: 2px solid var(--line);
@@ -225,6 +461,8 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
   margin-bottom: 16px;
 }
 #item-photo[hidden] { display: none; }
+#item-note { overflow-wrap: anywhere; }
+#item-where { margin: 0 0 8px; color: var(--muted); font-weight: 600; }
 #item-when { margin: 0; font-size: 20px; }
 #item-when .badge { margin-left: 6px; }
 
@@ -251,7 +489,17 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
   font-weight: 600;
 }
 #toast[hidden] { display: none; }
+#toast-text {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
 #toast-undo {
+  flex: none;
   min-height: 48px;
   padding: 0 18px;
   border: 0;
@@ -261,3 +509,37 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
   font-weight: 800;
   text-decoration: underline;
 }
+
+/* ---------- your own kinds ---------- */
+
+.kind-form {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 2px solid var(--line);
+  scroll-margin-top: 12px;
+}
+.kind-form[hidden] { display: none; }
+.kind-form h3 { margin: 0; font-size: 20px; }
+.kind-form .field:first-of-type { margin-top: 10px; }
+.kind-form input[type="text"] { background: var(--card); }
+.emoji-chips .chip { min-width: 56px; padding: 0 10px; font-size: 26px; }
+.kind-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.btn-danger { background: var(--bad-bg); color: var(--bad-ink); margin-left: auto; }
+.form-error { margin: 12px 0 0; color: var(--bad-ink); font-weight: 700; }
+.link-btn {
+  justify-self: start;
+  min-height: 44px;
+  margin-top: 4px;
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--brand);
+  font-weight: 700;
+  text-decoration: underline;
+}
+.link-btn[hidden] { display: none; }
+
+.counter { float: right; font-weight: 600; color: var(--muted); }
+.counter[hidden] { display: none; }
