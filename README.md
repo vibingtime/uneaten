@@ -59,8 +59,16 @@ node gen-vapid.mjs                        # prints a public key and a private JW
 npx wrangler kv namespace create SUBS     # paste the id into wrangler.toml
 # wrangler.toml: set ALLOWED_ORIGIN, VAPID_SUBJECT, VAPID_PUBLIC_KEY
 npx wrangler secret put VAPID_PRIVATE_JWK # paste the private JWK
+npx wrangler secret put SYNC_KEY          # choose a reminder passcode
 npx wrangler deploy                       # prints https://uneaten-reminders.<you>.workers.dev
 ```
+
+**Keeping it private:** the site is public, so the worker only accepts phones
+that send the passcode (`SYNC_KEY`), and at most 5 of them (set `MAX_PHONES`
+under `[vars]` to change that). Phones already signed up keep working when the
+limit is reached. With no `SYNC_KEY` set, nobody can sign up. The app asks for
+the passcode once when **Turn on** is tapped and keeps it on the phone; if the
+passcode changes, it asks again.
 
 Then fill in `config.js` with the worker URL (ending in `/`) and the public key,
 bump `VERSION` in `sw.js`, and push.

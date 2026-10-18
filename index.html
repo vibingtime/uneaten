@@ -40,6 +40,11 @@
 
   <div id="offer" class="banner banner-offer" hidden>
     <p id="offer-text"></p>
+    <!-- Reminders go through the owner's server, which needs its passcode. -->
+    <label id="offer-key-field" class="field offer-key" hidden>
+      <span>Reminder passcode</span>
+      <input id="offer-key" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="done">
+    </label>
     <div class="banner-actions">
       <button id="offer-yes" type="button" class="btn btn-primary">Turn on</button>
       <button id="offer-no" type="button" class="btn btn-quiet">Not now</button>

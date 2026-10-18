@@ -55,3 +55,62 @@ test('encrypted payload has the aes128gcm header layout', async () => {
   assert.equal(body[20], 65);
   assert.equal(body.length, 16 + 4 + 1 + 65 + 2 + 1 + 16); // + plaintext, delimiter, tag
 });
+
+// A tiny in-memory stand-in for Workers KV.
+function fakeKV() {
+  const m = new Map();
+  return {
+    m,
+    get: async (k, type) => (m.has(k) ? (type === 'json' ? JSON.parse(m.get(k)) : m.get(k)) : null),
+    put: async (k, v) => void m.set(k, v),
+    delete: async (k) => void m.delete(k),
+    list: async ({ prefix }) => ({ keys: [...m.keys()].filter((k) => k.startsWith(prefix)).map((name) => ({ name })), list_complete: true }),
+  };
+}
+
+const { default: worker } = await import('./src/index.js');
+const env = (extra = {}) => ({ ALLOWED_ORIGIN: 'https://example.github.io', SYNC_KEY: 'open sesame', SUBS: fakeKV(), ...extra });
+const sync = (e, n, key = 'open sesame', method = 'POST') => worker.fetch(new Request('https://w.example/sync', {
+  method,
+  headers: { 'content-type': 'application/json', ...(key == null ? {} : { 'x-uneaten-key': key }) },
+  body: JSON.stringify(method === 'DELETE' ? { endpoint: `https://push.example/${n}` }
+    : { subscription: { endpoint: `https://push.example/${n}`, keys: { p256dh: 'a', auth: 'b' } }, tz: 'UTC', dates: ['2026-10-20'] }),
+}), e);
+
+test('sync needs the right passcode', async () => {
+  const e = env();
+  assert.equal((await sync(e, 1, null)).status, 401);
+  assert.equal((await sync(e, 1, 'wrong')).status, 401);
+  assert.equal((await sync(e, 1, '')).status, 401);
+  assert.equal(e.SUBS.m.size, 0);
+  assert.equal((await sync(e, 1)).status, 204);
+  assert.equal(e.SUBS.m.size, 1);
+  assert.equal((await sync(e, 1, 'wrong', 'DELETE')).status, 401);
+  assert.equal(e.SUBS.m.size, 1);
+  assert.equal((await sync(e, 1, 'open sesame', 'DELETE')).status, 204);
+  assert.equal(e.SUBS.m.size, 0);
+});
+
+test('with no passcode set, nobody can sign up', async () => {
+  const e = env({ SYNC_KEY: undefined });
+  assert.equal((await sync(e, 1, 'anything')).status, 401);
+  assert.equal((await sync(e, 1, '')).status, 401);
+});
+
+test('at most 5 phones; phones already signed up keep updating', async () => {
+  const e = env();
+  for (let n = 1; n <= 5; n++) assert.equal((await sync(e, n)).status, 204);
+  assert.equal((await sync(e, 6)).status, 403);
+  assert.equal(e.SUBS.m.size, 5);
+  assert.equal((await sync(e, 3)).status, 204); // an existing phone updates its dates
+  await sync(e, 2, 'open sesame', 'DELETE');
+  assert.equal((await sync(e, 6)).status, 204); // room again after one leaves
+  const custom = env({ MAX_PHONES: '2' });
+  await sync(custom, 1); await sync(custom, 2);
+  assert.equal((await sync(custom, 3)).status, 403);
+});
+
+test('browsers may send the passcode header', async () => {
+  const res = await worker.fetch(new Request('https://w.example/sync', { method: 'OPTIONS' }), env());
+  assert.match(res.headers.get('access-control-allow-headers'), /x-uneaten-key/);
+});
