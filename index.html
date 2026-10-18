@@ -65,9 +65,12 @@
   </section>
 </main>
 
-<button id="add" type="button" aria-label="Add an item">
-  <span aria-hidden="true">+</span> Add
-</button>
+<!-- The Add button sits in its own strip; a full fridge scrolls behind it. -->
+<div class="bottom-bar">
+  <button id="add" type="button" aria-label="Add an item">
+    <span aria-hidden="true">+</span> Add
+  </button>
+</div>
 
 <!-- Two pickers: `capture` opens the rear camera, the other the photo gallery. -->
 <input id="camera" type="file" accept="image/*" capture="environment" hidden>
