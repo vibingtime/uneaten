@@ -12,10 +12,17 @@ const KEEPS = {
 };
 // Kinds every fridge starts with. The user's own kinds are added from the DB.
 const BUILT_IN = {
-  leftovers: { id: 'leftovers', label: 'Leftovers', icon: '🍲', keeps: 'days', shelf: 'middle', example: 'Pasta from Sunday' },
+  leftovers: { id: 'leftovers', label: 'Leftovers', icon: '🍲', keeps: 'days', shelf: 'middle', example: 'Biryani' },
   sauces: { id: 'sauces', label: 'Dips & sauces', icon: '🥫', keeps: 'weeks', shelf: 'door', example: 'Garlic mayo' },
 };
 const ICONS = ['🧀', '🥛', '🥚', '🥗', '🍎', '🥕', '🍰', '🍕', '🍗', '🐟', '🍚', '🧃', '🍫', '🥣', '🍲', '🥫'];
+
+// Name limits, counted as a person sees them: an emoji is one character.
+const NOTE_MAX = 40;
+const KIND_MAX = 20;
+const segmenter = globalThis.Intl?.Segmenter ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+const chars = (text) => (segmenter ? [...segmenter.segment(text)].map((x) => x.segment) : [...text]);
+const clip = (text, max) => chars(text).slice(0, max).join('');
 const SHELVES = { top: 'Top shelf', middle: 'Middle shelf', bottom: 'Bottom shelf', door: 'Door' };
 
 let items = [];
@@ -254,6 +261,21 @@ function chip(label) {
 
 const shelfOptions = Object.entries(SHELVES);
 
+// Stops a text box at `max` characters (typed or pasted) and shows a small
+// "34/40" counter once the end is near.
+function limit(input, counter, max) {
+  const update = () => {
+    if (chars(input.value).length > max) input.value = clip(input.value, max);
+    const n = chars(input.value).length;
+    counter.hidden = n < max - 10;
+    counter.textContent = `${n}/${max}`;
+  };
+  input.addEventListener('input', update);
+  return update;
+}
+const refreshNoteCount = limit($('add-note'), $('add-note-count'), NOTE_MAX);
+const refreshKindCount = limit($('kind-name'), $('kind-name-count'), KIND_MAX);
+
 // ---------- add ----------
 
 const draft = { photo: null, category: 'leftovers', shelf: 'middle', expires: null };
@@ -284,6 +306,7 @@ for (const input of [$('camera'), $('gallery')]) {
 function resetDraft() {
   setPhoto(null);
   $('add-note').value = '';
+  refreshNoteCount();
   closeKindForm();
   setCategory('leftovers');
 }
@@ -324,6 +347,7 @@ function openKindForm(c) {
   $('kind-delete').hidden = !c;
   $('kind-error').hidden = true;
   $('kind-name').value = c?.label ?? '';
+  refreshKindCount();
   pickOne($('kind-icon'), ICONS.map((i) => [i, i]), kindDraft.icon, (i) => (kindDraft.icon = i));
   pickOne($('kind-keeps'), Object.entries(KEEPS).map(([k, v]) => [k, v.label]), kindDraft.keeps, (k) => (kindDraft.keeps = k));
   pickOne($('kind-shelf'), shelfOptions, kindDraft.shelf, (s) => (kindDraft.shelf = s));
@@ -350,7 +374,7 @@ $('kind-name').addEventListener('keydown', (e) => {
 });
 
 $('kind-save').addEventListener('click', async () => {
-  const label = $('kind-name').value.trim();
+  const label = clip($('kind-name').value.trim(), KIND_MAX);
   const clash = Object.values(kinds).find((c) => c.id !== kindDraft.id && c.label.toLowerCase() === label.toLowerCase());
   $('kind-error').textContent = !label ? 'Give it a name first.' : clash ? `You already have “${clash.label}”.` : '';
   $('kind-error').hidden = !$('kind-error').textContent;
@@ -396,7 +420,7 @@ $('add-form').addEventListener('submit', async (e) => {
   const item = {
     id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     photo: draft.photo,
-    note: $('add-note').value.trim(),
+    note: clip($('add-note').value.trim(), NOTE_MAX),
     category: draft.category,
     shelf: draft.shelf,
     expires: draft.expires,

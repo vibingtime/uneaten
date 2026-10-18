@@ -261,14 +261,22 @@ body.dragging .rack.drop { background: rgb(31 122 77 / 0.14); box-shadow: inset 
 .tile.soon .thumb { border-color: #f0b429; }
 .tile.expired .thumb { border-color: #d64545; }
 
+/* Up to two lines, then "…"; long words break rather than spill. The full
+   name is on the item screen and in the tile's aria-label. */
 .tile-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-hyphens: auto;
+  hyphens: auto;
   font-size: 15px;
   font-weight: 600;
   line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  text-align: center;
 }
 .tile-when {
   padding: 1px 8px;
@@ -431,6 +439,10 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
 
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   min-height: 52px;
   padding: 0 18px;
   border: 2px solid var(--line);
@@ -449,6 +461,7 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
   margin-bottom: 16px;
 }
 #item-photo[hidden] { display: none; }
+#item-note { overflow-wrap: anywhere; }
 #item-where { margin: 0 0 8px; color: var(--muted); font-weight: 600; }
 #item-when { margin: 0; font-size: 20px; }
 #item-when .badge { margin-left: 6px; }
@@ -476,7 +489,17 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
   font-weight: 600;
 }
 #toast[hidden] { display: none; }
+#toast-text {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
 #toast-undo {
+  flex: none;
   min-height: 48px;
   padding: 0 18px;
   border: 0;
@@ -517,3 +540,6 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
   text-decoration: underline;
 }
 .link-btn[hidden] { display: none; }
+
+.counter { float: right; font-weight: 600; color: var(--muted); }
+.counter[hidden] { display: none; }

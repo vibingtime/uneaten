@@ -79,8 +79,8 @@
     <div id="kind-form" class="kind-form" hidden>
       <h3 id="kind-title">New kind</h3>
       <label class="field">
-        <span>Name</span>
-        <input id="kind-name" type="text" maxlength="24" placeholder="Dairy" autocomplete="off" enterkeyhint="done">
+        <span>Name <em>(short is best)</em> <small class="counter" id="kind-name-count" hidden></small></span>
+        <input id="kind-name" type="text" placeholder="Dairy" autocomplete="off" enterkeyhint="done">
       </label>
       <fieldset class="field">
         <legend>Picture</legend>
@@ -102,8 +102,8 @@
       </div>
     </div>
     <label class="field">
-      <span>Name <em>(optional)</em></span>
-      <input id="add-note" type="text" maxlength="60" autocomplete="off" enterkeyhint="done">
+      <span>Name <em>(optional, short is best)</em> <small class="counter" id="add-note-count" hidden></small></span>
+      <input id="add-note" type="text" autocomplete="off" enterkeyhint="done">
     </label>
     <fieldset class="field">
       <legend>Which shelf?</legend>
