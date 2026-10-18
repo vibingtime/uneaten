@@ -756,8 +756,17 @@ const configured = Boolean(cfg.pushUrl && cfg.vapidPublicKey);
 const canPush = configured && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 const SNOOZE_MS = 7 * 864e5;
 
+// The reminder server is private: it needs the passcode its owner set. It is
+// asked for once and kept on the phone; if the server rejects it, ask again.
+let keyRejected = false;
+const syncKey = () => recall('syncKey') || '';
+const needsKey = () => !syncKey() || keyRejected;
+
 function offerKind() {
   if (!items.length || !configured) return null;
+  // Reminders already on but the passcode is missing or wrong: they would
+  // silently stop updating, so ask even if the offer was snoozed.
+  if (canPush && Notification.permission === 'granted' && needsKey()) return 'key';
   let snoozed = 0;
   try { snoozed = Number(localStorage.getItem('offerSnoozed')) || 0; } catch {}
   if (Date.now() - snoozed < SNOOZE_MS) return null;
@@ -773,22 +782,36 @@ let offerNote = null;
 
 function renderOffer() {
   const kind = offerKind();
+  const askKey = needsKey() && (kind === 'push' || kind === 'key' || Boolean(offerNote?.retry));
   $('offer').hidden = !kind && !offerNote;
-  $('offer-text').textContent = offerNote?.text ?? 'Want a reminder before food goes bad?';
+  $('offer-text').textContent = offerNote?.text ?? (kind === 'key'
+    ? 'Enter the reminder passcode to keep your reminders coming.'
+    : 'Want a reminder before food goes bad?');
+  $('offer-key-field').hidden = !askKey;
   $('offer-yes').hidden = Boolean(offerNote && !offerNote.retry);
-  $('offer-yes').textContent = offerNote?.retry ? 'Try again' : 'Turn on';
+  $('offer-yes').textContent = offerNote?.retry ? 'Try again' : kind === 'key' ? 'Save passcode' : 'Turn on';
   $('offer-no').textContent = offerNote && !offerNote.retry ? 'OK' : 'Not now';
 }
 
 $('offer-yes').addEventListener('click', async () => {
   if (offerKind() === 'ios') return $('ios-sheet').showModal();
   const btn = $('offer-yes');
+  if (!$('offer-key-field').hidden) {
+    const key = $('offer-key').value.trim();
+    if (!key) {
+      offerNote = { text: 'Type the reminder passcode first.', retry: true };
+      return renderOffer();
+    }
+    remember('syncKey', key);
+    keyRejected = false;
+  }
   btn.disabled = true;
   try {
-    const perm = await Notification.requestPermission();
+    const perm = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
     if (perm === 'granted') {
       await sync();
       offerNote = null;
+      $('offer-key').value = '';
       toast('Reminders are on. You will get one at 9:00 when food is due.');
     } else if (perm === 'denied') {
       offerNote = {
@@ -799,11 +822,20 @@ $('offer-yes').addEventListener('click', async () => {
       offerNote = { text: 'Tap Allow when your phone asks. Look for a bell icon in the address bar if nothing pops up.', retry: true };
     }
   } catch (err) {
-    offerNote = { text: `Could not turn on reminders (${err.message || err}). Check your internet and try again.`, retry: true };
+    offerNote = err.status === 401
+      ? { text: 'That passcode did not work. Check it and try again.', retry: true }
+      : err.status === 403
+        ? { text: 'The reminder server already has its 5 phones, so this one cannot join.', retry: false }
+        : { text: `Could not turn on reminders (${err.message || err}). Check your internet and try again.`, retry: true };
   } finally {
     btn.disabled = false;
     renderOffer();
   }
+});
+$('offer-key').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  $('offer-yes').click();
 });
 
 $('offer-no').addEventListener('click', () => {
@@ -815,26 +847,32 @@ $('offer-no').addEventListener('click', () => {
 });
 
 function changed() {
-  sync().catch(() => {});
+  // A background update the server refused for the passcode: ask for it.
+  sync().catch((err) => err.status === 401 && renderOffer());
 }
 
 // Tells the reminder worker which dates to watch. Only dates leave the
 // phone: no photos, no notes.
 async function sync() {
   if (!canPush || Notification.permission !== 'granted') return;
+  if (!syncKey()) return renderOffer();
   const reg = await navigator.serviceWorker.ready;
   const sub = await reg.pushManager.getSubscription()
     ?? await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(cfg.vapidPublicKey) });
   const res = await fetch(new URL('sync', cfg.pushUrl), {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', 'x-uneaten-key': syncKey() },
     body: JSON.stringify({
       subscription: sub.toJSON(),
       tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
       dates: items.map((i) => i.expires),
     }),
   });
-  if (!res.ok) throw new Error(`reminder server said ${res.status}`);
+  if (res.status === 401) {
+    keyRejected = true;
+    remember('syncKey', '');
+  }
+  if (!res.ok) throw Object.assign(new Error(`reminder server said ${res.status}`), { status: res.status });
 }
 
 // Safari wants the key as bytes, not the base64url text.

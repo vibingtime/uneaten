@@ -4,6 +4,11 @@
 //   DELETE /sync  {endpoint}                    forget a phone
 //   cron hourly                                 9:00 local -> one Web Push
 //
+// Private: every /sync call must carry the passcode set with
+// `wrangler secret put SYNC_KEY` in the x-uneaten-key header, and at most
+// MAX_PHONES phones (default 5) can sign up. The site itself is public, so
+// this is what keeps strangers from using your Cloudflare account.
+//
 // Only expiry dates are stored, never photos or notes. The push carries a
 // rough count; the phone's service worker rewrites it from its own data.
 
@@ -18,11 +23,14 @@ export default {
     const cors = {
       'access-control-allow-origin': env.ALLOWED_ORIGIN,
       'access-control-allow-methods': 'POST, DELETE',
-      'access-control-allow-headers': 'content-type',
+      'access-control-allow-headers': 'content-type, x-uneaten-key',
     };
     if (req.method === 'OPTIONS') return new Response(null, { headers: cors });
     const url = new URL(req.url);
     if (url.pathname !== '/sync') return new Response('Not found', { status: 404, headers: cors });
+    if (!(await passcodeOk(req.headers.get('x-uneaten-key'), env.SYNC_KEY))) {
+      return new Response('Wrong passcode', { status: 401, headers: cors });
+    }
 
     let body;
     try {
@@ -39,6 +47,10 @@ export default {
     if (req.method === 'POST' && valid(body)) {
       const key = await keyFor(body.subscription.endpoint);
       const old = await env.SUBS.get(key, 'json');
+      // Phones already signed up keep working; new ones only while there is room.
+      if (!old && (await countPhones(env)) >= maxPhones(env)) {
+        return new Response('Reminder server is full', { status: 403, headers: cors });
+      }
       await env.SUBS.put(key, JSON.stringify({
         subscription: body.subscription,
         tz: body.tz,
@@ -55,6 +67,29 @@ export default {
     ctx.waitUntil(remindAll(env, new Date()));
   },
 };
+
+// Fails closed: with no SYNC_KEY set, nobody can sign up.
+export async function passcodeOk(given, expected) {
+  if (!expected || typeof given !== 'string' || !given) return false;
+  // Compare digests so the time taken says nothing about the passcode.
+  const [a, b] = await Promise.all([given, expected].map(async (t) => new Uint8Array(await crypto.subtle.digest('SHA-256', enc.encode(t)))));
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  return diff === 0;
+}
+
+const maxPhones = (env) => Number(env.MAX_PHONES) || 5;
+
+async function countPhones(env) {
+  let count = 0;
+  let cursor;
+  do {
+    const page = await env.SUBS.list({ prefix: 'sub:', cursor });
+    count += page.keys.length;
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  return count;
+}
 
 function valid(b) {
   const s = b?.subscription;

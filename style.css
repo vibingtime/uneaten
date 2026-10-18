@@ -342,6 +342,9 @@ body.dragging .rack.drop { background: rgb(31 122 77 / 0.14); box-shadow: inset 
 .banner-bad { background: var(--bad-bg); color: var(--bad-ink); }
 .banner-offer { background: var(--card); box-shadow: var(--shadow); }
 .banner-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.offer-key { margin: 0 0 12px; font-weight: 600; }
+.offer-key[hidden] { display: none; }
+.offer-key input { background: var(--bg); }
 
 /* ---------- buttons ---------- */
 
