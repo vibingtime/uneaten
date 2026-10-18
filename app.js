@@ -35,10 +35,24 @@ const keepsOf = (c) => KEEPS[c.keeps] ?? KEEPS.days;
 // ---------- fridge ----------
 
 async function load() {
-  // Items saved before shelves and categories existed go on the middle shelf.
-  items = (await DB.all()).map((i) => ({ category: 'leftovers', shelf: 'middle', ...i }));
-  kinds = { ...BUILT_IN };
-  for (const c of await DB.categories()) kinds[c.id] = c;
+  const slow = setTimeout(() => {
+    $('alert').hidden = false;
+    $('alert').textContent = STUCK;
+  }, STUCK_MS);
+  try {
+    // Items saved before shelves and categories existed go on the middle shelf.
+    items = (await DB.all()).map((i) => ({ category: 'leftovers', shelf: 'middle', ...i }));
+    kinds = { ...BUILT_IN };
+    for (const c of await DB.categories()) kinds[c.id] = c;
+  } catch (err) {
+    console.error(err);
+    render();
+    $('alert').hidden = false;
+    $('alert').textContent = `Your fridge could not be opened (${err?.message || err}). Close the app and open it again.`;
+    return;
+  } finally {
+    clearTimeout(slow);
+  }
   render();
 }
 
@@ -125,6 +139,28 @@ function recall(key) {
 }
 const seen = (key) => recall(key) === '1';
 
+// Runs a save and, if the phone refuses it, says so instead of silently
+// doing nothing.
+function safely(fn) {
+  return async (...args) => {
+    const slow = setTimeout(() => toast(STUCK), STUCK_MS);
+    try {
+      await fn(...args);
+    } catch (err) {
+      console.error(err);
+      toast(`Could not save (${err?.message || err}). Please try again.`);
+    } finally {
+      clearTimeout(slow);
+    }
+  };
+}
+
+// The phone queues every save behind an older copy of the app that still has
+// the fridge open (another tab, or the installed app in the background). It
+// carries on by itself once that copy closes.
+const STUCK_MS = 2000;
+const STUCK = 'Uneaten is still open somewhere else. Close its other tabs and swipe the app away, and this will finish.';
+
 // ---------- drag between shelves ----------
 
 // Press and hold a tile, then drag it onto another shelf. A quick tap still
@@ -202,7 +238,7 @@ document.addEventListener('pointercancel', () => {
 // Once an item is lifted, a finger moving must drag it, not scroll the page.
 document.addEventListener('touchmove', (e) => dragging && e.preventDefault(), { passive: false });
 
-async function moveTo(item, shelf) {
+const moveTo = safely(async (item, shelf) => {
   const from = item.shelf;
   item.shelf = shelf;
   await DB.put(item);
@@ -213,7 +249,7 @@ async function moveTo(item, shelf) {
     await DB.put(item);
     render();
   });
-}
+});
 
 // ---------- chips ----------
 
@@ -373,7 +409,7 @@ $('kind-name').addEventListener('keydown', (e) => {
   $('kind-save').click();
 });
 
-$('kind-save').addEventListener('click', async () => {
+$('kind-save').addEventListener('click', safely(async () => {
   const label = clip($('kind-name').value.trim(), KIND_MAX);
   const clash = Object.values(kinds).find((c) => c.id !== kindDraft.id && c.label.toLowerCase() === label.toLowerCase());
   $('kind-error').textContent = !label ? 'Give it a name first.' : clash ? `You already have “${clash.label}”.` : '';
@@ -388,9 +424,9 @@ $('kind-save').addEventListener('click', async () => {
   remember(`shelf:${c.id}`, c.shelf);
   setCategory(c.id);
   render();
-});
+}));
 
-$('kind-delete').addEventListener('click', async () => {
+$('kind-delete').addEventListener('click', safely(async () => {
   const c = kinds[kindDraft.id];
   const using = items.filter((i) => i.category === c.id);
   const what = using.length === 1 ? '1 item' : `${using.length} items`;
@@ -403,7 +439,7 @@ $('kind-delete').addEventListener('click', async () => {
   delete kinds[c.id];
   setCategory('leftovers');
   render();
-});
+}));
 
 function setPhoto(blob) {
   draft.photo = blob;
@@ -415,7 +451,7 @@ function setPhoto(blob) {
   $('photo-change').hidden = !blob;
 }
 
-$('add-form').addEventListener('submit', async (e) => {
+$('add-form').addEventListener('submit', safely(async (e) => {
   e.preventDefault();
   const item = {
     id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -434,7 +470,7 @@ $('add-form').addEventListener('submit', async (e) => {
   changed();
   // Ask the browser not to evict photos when space runs low.
   navigator.storage?.persist?.();
-});
+}));
 
 // Downscale to ~800px JPEG so a fridge full of photos stays small.
 async function shrink(file, max = 800) {
@@ -479,7 +515,7 @@ $('item-change').addEventListener('click', () => {
   $('item-move').hidden = true;
   $('item-date').hidden = false;
   const k = keepsOf(cat(current));
-  dateChips($('item-chips'), k.choices, async (iso) => {
+  dateChips($('item-chips'), k.choices, safely(async (iso) => {
     current.expires = iso;
     await DB.put(current);
     showWhen(current);
@@ -487,7 +523,7 @@ $('item-change').addEventListener('click', () => {
     changed();
     // A quick-pick chip is a final answer; a typed date may still be fiddled with.
     if (document.activeElement?.type !== 'date') $('item-sheet').close();
-  }, null, k.days);
+  }), null, k.days);
 });
 
 $('item-relocate').addEventListener('click', () => {
@@ -499,7 +535,7 @@ $('item-relocate').addEventListener('click', () => {
   });
 });
 
-$('item-done').addEventListener('click', async () => {
+$('item-done').addEventListener('click', safely(async () => {
   const gone = current;
   $('item-sheet').close();
   await DB.remove(gone.id);
@@ -512,16 +548,23 @@ $('item-done').addEventListener('click', async () => {
     render();
     changed();
   });
-});
+}));
 
 // ---------- shared UI ----------
 
 for (const btn of document.querySelectorAll('[data-close]')) {
   btn.addEventListener('click', () => btn.closest('dialog').close());
 }
-// Tapping the dimmed backdrop closes a sheet, as people expect.
+// Tapping the dimmed backdrop closes a sheet, as people expect. A tap on the
+// sheet's own padding also reports the dialog as its target, so check the
+// tap really landed outside the sheet.
 for (const d of document.querySelectorAll('dialog')) {
-  d.addEventListener('click', (e) => e.target === d && d.close());
+  d.addEventListener('click', (e) => {
+    if (e.target !== d) return;
+    const r = d.getBoundingClientRect();
+    const inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    if (!inside) d.close();
+  });
 }
 
 let toastTimer;

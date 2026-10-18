@@ -1,7 +1,7 @@
 // Cache-first app shell plus the daily reminder. Everything here is static, so
 // a plain cache-first strategy is correct; bump VERSION whenever any cached
 // file changes and the new service worker will drop the old cache on activate.
-const VERSION = 'v6';
+const VERSION = 'v7';
 const ASSETS = [
   './',
   'index.html',
@@ -39,7 +39,11 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request)));
+  // Look only in this version's cache: while an update installs, the old and
+  // new caches both exist and a plain caches.match() could mix their files.
+  e.respondWith(
+    caches.open(VERSION).then((c) => c.match(e.request)).then((hit) => hit || fetch(e.request))
+  );
 });
 
 // The worker only knows dates, so its message is a rough count. The phone
