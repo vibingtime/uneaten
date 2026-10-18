@@ -36,6 +36,15 @@ globalThis.Dates = (() => {
     return `${days} days left`;
   }
 
+  // A few words that fit under a small tile on a shelf.
+  function short(days) {
+    if (days < 0) return 'Throw away';
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Tomorrow';
+    if (days < 14) return `${days} days`;
+    return `${Math.floor(days / 7)} weeks`;
+  }
+
   function longDate(iso) {
     return new Date(toUTC(iso)).toLocaleDateString(undefined, {
       weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC',
@@ -60,5 +69,5 @@ globalThis.Dates = (() => {
     return parts.length ? parts.join(', ') : null;
   }
 
-  return { today, addDays, daysLeft, status, label, longDate, summary };
+  return { today, addDays, daysLeft, status, label, short, longDate, summary };
 })();

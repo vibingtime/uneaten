@@ -4,21 +4,29 @@
 const $ = (id) => document.getElementById(id);
 const cfg = globalThis.UNEATEN_CONFIG || {};
 
-const CHOICES = [
-  ['Tomorrow', 1],
-  ['3 days', 3],
-  ['5 days', 5],
-  ['1 week', 7],
-];
-const DEFAULT_DAYS = 3;
+// Each kind of food keeps its own sensible expiry choices and its usual spot.
+const CATEGORIES = {
+  leftovers: {
+    label: 'Leftovers', icon: '🍲', example: 'Pasta from Sunday', shelf: 'middle', days: 3,
+    choices: [['Tomorrow', 1], ['3 days', 3], ['5 days', 5], ['1 week', 7]],
+  },
+  sauces: {
+    label: 'Dips & sauces', icon: '🥫', example: 'Garlic mayo', shelf: 'door', days: 14,
+    choices: [['1 week', 7], ['2 weeks', 14], ['1 month', 30], ['2 months', 60]],
+  },
+};
+const SHELVES = { top: 'Top shelf', middle: 'Middle shelf', bottom: 'Bottom shelf', door: 'Door' };
 
 let items = [];
 let urls = [];
 
-// ---------- list ----------
+const cat = (item) => CATEGORIES[item.category] ?? CATEGORIES.leftovers;
+
+// ---------- fridge ----------
 
 async function load() {
-  items = await DB.all();
+  // Items saved before shelves and categories existed go on the middle shelf.
+  items = (await DB.all()).map((i) => ({ category: 'leftovers', shelf: 'middle', ...i }));
   render();
 }
 
@@ -28,19 +36,9 @@ function render() {
 
   const today = Dates.today();
   const sorted = [...items].sort((a, b) => a.expires.localeCompare(b.expires) || a.added - b.added);
-  const list = $('list');
-  list.replaceChildren();
-
-  for (const item of sorted) {
-    const days = Dates.daysLeft(item.expires, today);
-    const li = document.createElement('li');
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'item';
-    btn.append(thumb(item), text(item, days));
-    btn.addEventListener('click', () => openItem(item));
-    li.append(btn);
-    list.append(li);
+  for (const rack of document.querySelectorAll('.rack')) {
+    const here = sorted.filter((i) => (SHELVES[i.shelf] ? i.shelf : 'middle') === rack.dataset.shelf);
+    rack.querySelector('.rack-items').replaceChildren(...here.map((i) => tile(i, today)));
   }
 
   const expired = items.filter((i) => Dates.daysLeft(i.expires, today) < 0).length;
@@ -49,32 +47,48 @@ function render() {
     ? '1 thing is past its date. Throw it away.'
     : `${expired} things are past their date. Throw them away.`;
   $('empty').hidden = items.length > 0;
+  $('drag-hint').hidden = !(items.length >= 2 && !seen('dragHint'));
   renderOffer();
+}
+
+function tile(item, today) {
+  const days = Dates.daysLeft(item.expires, today);
+  const li = document.createElement('li');
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = `tile ${Dates.status(days)}`;
+  btn.setAttribute('aria-label', `${item.note || cat(item).label}, ${Dates.label(days)}`);
+  const name = document.createElement('span');
+  name.className = 'tile-name';
+  name.textContent = item.note || cat(item).label;
+  const when = document.createElement('span');
+  when.className = `tile-when ${Dates.status(days)}`;
+  when.textContent = Dates.short(days);
+  btn.append(thumb(item), name, when);
+  btn.addEventListener('click', () => {
+    if (dragJustEnded) return;
+    openItem(item);
+  });
+  btn.addEventListener('pointerdown', (e) => press(e, item, btn));
+  btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  li.append(btn);
+  return li;
 }
 
 function thumb(item) {
   if (!item.photo) {
     const span = document.createElement('span');
     span.className = 'thumb';
-    span.textContent = '🍲';
+    span.textContent = cat(item).icon;
     span.setAttribute('aria-hidden', 'true');
     return span;
   }
   const img = document.createElement('img');
   img.className = 'thumb';
   img.alt = '';
+  img.draggable = false;
   img.src = objectUrl(item.photo);
   return img;
-}
-
-function text(item, days) {
-  const wrap = document.createElement('span');
-  wrap.className = 'item-text';
-  const note = document.createElement('span');
-  note.className = 'item-note';
-  note.textContent = item.note || 'Leftovers';
-  wrap.append(note, badge(days));
-  return wrap;
 }
 
 function badge(days) {
@@ -90,42 +104,138 @@ function objectUrl(blob) {
   return u;
 }
 
-// ---------- chips (shared by "add" and "change date") ----------
+// Tiny per-phone memory (last shelf used, hints seen). Losing it costs nothing.
+function remember(key, value) {
+  try { localStorage.setItem(key, value); } catch {}
+}
+function recall(key) {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+const seen = (key) => recall(key) === '1';
 
-// Builds the quick-pick chips plus a "Pick date" chip that reveals a date
-// input. onPick(iso) fires on every choice.
-function chips(container, onPick, selectedDays) {
+// ---------- drag between shelves ----------
+
+// Press and hold a tile, then drag it onto another shelf. A quick tap still
+// opens the item, and moving early is treated as scrolling the page.
+const HOLD_MS = 350;
+let pressing = null;
+let dragging = null;
+let dragJustEnded = false;
+
+function press(e, item, btn) {
+  if (e.button > 0 || dragging) return;
+  pressing = {
+    item, btn, x: e.clientX, y: e.clientY,
+    timer: setTimeout(() => lift(e.clientX, e.clientY), HOLD_MS),
+  };
+}
+
+function lift(x, y) {
+  const { item, btn } = pressing;
+  pressing = null;
+  const box = btn.getBoundingClientRect();
+  const ghost = btn.cloneNode(true);
+  ghost.classList.add('ghost');
+  ghost.style.width = `${box.width}px`;
+  document.body.append(ghost);
+  dragging = { item, btn, ghost, dx: x - box.left, dy: y - box.top };
+  btn.classList.add('lifted');
+  document.body.classList.add('dragging');
+  navigator.vibrate?.(15);
+  follow(x, y);
+}
+
+function follow(x, y) {
+  const { ghost, dx, dy } = dragging;
+  ghost.style.transform = `translate(${x - dx}px, ${y - dy}px) scale(1.08)`;
+  const over = rackAt(x, y);
+  for (const r of document.querySelectorAll('.rack')) r.classList.toggle('drop', r === over);
+}
+
+function rackAt(x, y) {
+  return document.elementFromPoint(x, y)?.closest('.rack') ?? null;
+}
+
+function endDrag(x, y) {
+  const { item, btn, ghost } = dragging;
+  dragging = null;
+  ghost.remove();
+  btn.classList.remove('lifted');
+  document.body.classList.remove('dragging');
+  for (const r of document.querySelectorAll('.rack')) r.classList.remove('drop');
+  // The browser follows pointerup with a click; don't let it open the item.
+  dragJustEnded = true;
+  setTimeout(() => (dragJustEnded = false), 50);
+  const to = x == null ? null : rackAt(x, y)?.dataset.shelf;
+  if (to && to !== item.shelf) moveTo(item, to);
+}
+
+function cancelPress() {
+  if (pressing) clearTimeout(pressing.timer);
+  pressing = null;
+}
+
+document.addEventListener('pointermove', (e) => {
+  if (dragging) return follow(e.clientX, e.clientY);
+  if (pressing && Math.hypot(e.clientX - pressing.x, e.clientY - pressing.y) > 10) cancelPress();
+});
+document.addEventListener('pointerup', (e) => {
+  if (dragging) endDrag(e.clientX, e.clientY);
+  else cancelPress();
+});
+document.addEventListener('pointercancel', () => {
+  if (dragging) endDrag(null, null);
+  else cancelPress();
+});
+// Once an item is lifted, a finger moving must drag it, not scroll the page.
+document.addEventListener('touchmove', (e) => dragging && e.preventDefault(), { passive: false });
+
+async function moveTo(item, shelf) {
+  const from = item.shelf;
+  item.shelf = shelf;
+  await DB.put(item);
+  remember('dragHint', '1');
+  render();
+  toast(`Moved to ${SHELVES[shelf].toLowerCase().replace('door', 'the door')}`, async () => {
+    item.shelf = from;
+    await DB.put(item);
+    render();
+  });
+}
+
+// ---------- chips ----------
+
+// One-of-many buttons. options: [[value, label], ...]; onPick(value).
+function pickOne(container, options, selected, onPick) {
   container.replaceChildren();
-  const all = [];
-  const select = (btn) => all.forEach((b) => b.setAttribute('aria-pressed', String(b === btn)));
-
-  for (const [label, days] of CHOICES) {
+  const all = options.map(([value, label]) => {
     const b = chip(label);
-    if (days === selectedDays) b.setAttribute('aria-pressed', 'true');
+    b.setAttribute('aria-pressed', String(value === selected));
     b.addEventListener('click', () => {
-      select(b);
-      date.hidden = true;
-      onPick(Dates.addDays(Dates.today(), days));
+      all.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      onPick(value);
     });
-    all.push(b);
-  }
+    return b;
+  });
+  container.append(...all);
+}
 
-  const pick = chip('Pick date');
+// Expiry quick picks plus a "Pick date" chip that reveals a date input.
+// onPick(iso) fires on every choice.
+function dateChips(container, choices, onPick, selectedDays, fallbackDays) {
+  pickOne(container, [...choices.map(([label, days]) => [days, label]), ['pick', 'Pick date']], selectedDays, (v) => {
+    date.hidden = v !== 'pick';
+    if (v !== 'pick') return onPick(Dates.addDays(Dates.today(), v));
+    date.value ||= Dates.addDays(Dates.today(), fallbackDays);
+    date.showPicker?.();
+  });
   const date = document.createElement('input');
   date.type = 'date';
   date.hidden = true;
   date.min = Dates.today();
   date.setAttribute('aria-label', 'Expiry date');
-  pick.addEventListener('click', () => {
-    select(pick);
-    date.hidden = false;
-    date.value ||= Dates.addDays(Dates.today(), DEFAULT_DAYS);
-    date.showPicker?.();
-  });
   date.addEventListener('change', () => date.value && onPick(date.value));
-  all.push(pick);
-
-  container.append(...all, date);
+  container.append(date);
 }
 
 function chip(label) {
@@ -137,39 +247,52 @@ function chip(label) {
   return b;
 }
 
+const shelfOptions = Object.entries(SHELVES);
+const categoryOptions = Object.entries(CATEGORIES).map(([k, c]) => [k, `${c.icon} ${c.label}`]);
+
 // ---------- add ----------
 
-const draft = { photo: null, expires: null };
+const draft = { photo: null, category: 'leftovers', shelf: 'middle', expires: null };
 let previewUrl = null;
 
 $('add').addEventListener('click', () => {
   resetDraft();
-  // Straight to the camera. Whether a photo comes back or the camera is
-  // dismissed, the sheet opens so a note-only entry is still possible.
-  $('camera').click();
+  $('add-sheet').showModal();
 });
 
-$('add-photo').addEventListener('click', () => $('camera').click());
+$('pick-camera').addEventListener('click', () => $('camera').click());
+$('pick-gallery').addEventListener('click', () => $('gallery').click());
+$('photo-change').addEventListener('click', () => setPhoto(null));
 
-$('camera').addEventListener('change', async (e) => {
-  const file = e.target.files[0];
-  e.target.value = '';
-  if (file) {
+for (const input of [$('camera'), $('gallery')]) {
+  input.addEventListener('change', async () => {
+    const file = input.files[0];
+    input.value = '';
+    if (!file) return;
     try {
       setPhoto(await shrink(file));
     } catch {
-      setPhoto(null);
+      toast('That picture could not be opened. Try another one.');
     }
-  }
-  showAddSheet();
-});
-$('camera').addEventListener('cancel', showAddSheet);
+  });
+}
 
 function resetDraft() {
-  draft.expires = Dates.addDays(Dates.today(), DEFAULT_DAYS);
   setPhoto(null);
   $('add-note').value = '';
-  chips($('add-chips'), (iso) => (draft.expires = iso), DEFAULT_DAYS);
+  pickOne($('add-category'), categoryOptions, 'leftovers', setCategory);
+  setCategory('leftovers');
+}
+
+// Switching kind resets the shelf and expiry to what suits that kind.
+function setCategory(key) {
+  const c = CATEGORIES[key];
+  draft.category = key;
+  draft.shelf = SHELVES[recall(`shelf:${key}`)] ? recall(`shelf:${key}`) : c.shelf;
+  draft.expires = Dates.addDays(Dates.today(), c.days);
+  $('add-note').placeholder = c.example;
+  pickOne($('add-shelf'), shelfOptions, draft.shelf, (s) => (draft.shelf = s));
+  dateChips($('add-chips'), c.choices, (iso) => (draft.expires = iso), c.days, c.days);
 }
 
 function setPhoto(blob) {
@@ -178,11 +301,8 @@ function setPhoto(blob) {
   previewUrl = blob ? URL.createObjectURL(blob) : null;
   $('add-preview').hidden = !blob;
   $('add-preview').src = previewUrl || '';
-  $('add-photo-hint').hidden = !!blob;
-}
-
-function showAddSheet() {
-  if (!$('add-sheet').open) $('add-sheet').showModal();
+  $('photo-buttons').hidden = !!blob;
+  $('photo-change').hidden = !blob;
 }
 
 $('add-form').addEventListener('submit', async (e) => {
@@ -191,11 +311,14 @@ $('add-form').addEventListener('submit', async (e) => {
     id: crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     photo: draft.photo,
     note: $('add-note').value.trim(),
+    category: draft.category,
+    shelf: draft.shelf,
     expires: draft.expires,
     added: Date.now(),
   };
   await DB.put(item);
   items.push(item);
+  remember(`shelf:${item.category}`, item.shelf);
   $('add-sheet').close();
   render();
   changed();
@@ -230,22 +353,23 @@ function openItem(item) {
   const photo = $('item-photo');
   photo.hidden = !item.photo;
   if (item.photo) photo.src = objectUrl(item.photo);
-  $('item-note').textContent = item.note || 'Leftovers';
+  $('item-note').textContent = item.note || cat(item).label;
   showWhen(item);
   $('item-date').hidden = true;
-  $('item-change').hidden = false;
+  $('item-move').hidden = true;
   $('item-sheet').showModal();
 }
 
 function showWhen(item) {
-  const when = $('item-when');
-  when.replaceChildren(`Eat by ${Dates.longDate(item.expires)}`, badge(Dates.daysLeft(item.expires)));
+  $('item-where').textContent = `${cat(item).icon} ${cat(item).label} · ${SHELVES[item.shelf] ?? SHELVES.middle}`;
+  $('item-when').replaceChildren(`Eat by ${Dates.longDate(item.expires)}`, badge(Dates.daysLeft(item.expires)));
 }
 
 $('item-change').addEventListener('click', () => {
-  $('item-change').hidden = true;
+  $('item-move').hidden = true;
   $('item-date').hidden = false;
-  chips($('item-chips'), async (iso) => {
+  const c = cat(current);
+  dateChips($('item-chips'), c.choices, async (iso) => {
     current.expires = iso;
     await DB.put(current);
     showWhen(current);
@@ -253,6 +377,15 @@ $('item-change').addEventListener('click', () => {
     changed();
     // A quick-pick chip is a final answer; a typed date may still be fiddled with.
     if (document.activeElement?.type !== 'date') $('item-sheet').close();
+  }, null, c.days);
+});
+
+$('item-relocate').addEventListener('click', () => {
+  $('item-date').hidden = true;
+  $('item-move').hidden = false;
+  pickOne($('item-shelf'), shelfOptions, current.shelf, (shelf) => {
+    $('item-sheet').close();
+    if (shelf !== current.shelf) moveTo(current, shelf);
   });
 });
 
@@ -263,7 +396,7 @@ $('item-done').addEventListener('click', async () => {
   items = items.filter((i) => i.id !== gone.id);
   render();
   changed();
-  toast(`Removed ${gone.note || 'leftovers'}`, async () => {
+  toast(`Removed ${gone.note || cat(gone).label.toLowerCase()}`, async () => {
     await DB.put(gone);
     items.push(gone);
     render();

@@ -4,12 +4,18 @@ A tiny phone app for leftovers. Snap a photo, maybe type what it is, tap
 **Save**. The fridge list shows what to eat first and what to throw away, and
 a reminder pops up at 9:00 when something is due.
 
-- **Add:** tap **+ Add** → the camera opens → (optional note) → pick *Tomorrow
-  · 3 days · 5 days · 1 week · Pick date* (3 days is preselected) → **Save**.
-- **List:** soonest first, with plain-words badges: *3 days left*, *Eat by
-  tomorrow*, *Eat today*, *Expired: throw away*.
-- **Done with it:** tap the item → **Eaten or thrown away**. **Undo** is there for 5
-  seconds. **Change date** is on the same screen.
+- **Add:** tap **+ Add** → **Take photo** or **Choose from gallery** → pick
+  *Leftovers* or *Dips & sauces* → (optional name) → pick a shelf → pick how
+  long it keeps → **Save**. Each kind has its own expiry choices (leftovers:
+  days; dips & sauces: weeks to months) and its usual spot (sauces go on the
+  door). The app remembers the last shelf you used for each kind.
+- **Fridge:** the home screen is an open fridge with a top, middle and bottom
+  shelf and a door rack. Every item shows a plain-words badge, such as *3 days*,
+  *Tomorrow*, *Today* or *Throw away*.
+- **Move:** press and hold an item, then drag it to another shelf. **Move
+  shelf** on the item's screen does the same thing.
+- **Done with it:** tap the item → **Eaten or thrown away**. **Undo** is there
+  for 5 seconds. **Change date** is on the same screen.
 
 Everything (photos included) stays on the phone in IndexedDB. Works offline.
 Plain HTML/CSS/JS, no build step.

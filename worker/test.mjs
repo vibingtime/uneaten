@@ -14,6 +14,8 @@ test('day maths and labels', () => {
   assert.equal(D.label(1), 'Eat by tomorrow');
   assert.equal(D.label(4), '4 days left');
   assert.deepEqual([-2, 0, 1, 2].map(D.status), ['expired', 'soon', 'soon', 'ok']);
+  assert.deepEqual([-1, 0, 1, 5, 13, 14, 30, 60].map(D.short),
+    ['Throw away', 'Today', 'Tomorrow', '5 days', '13 days', '2 weeks', '4 weeks', '8 weeks']);
 });
 
 test('summary counts only what needs attention', () => {

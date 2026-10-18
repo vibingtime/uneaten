@@ -33,37 +33,60 @@
     </div>
   </div>
 
-  <ul id="list" aria-live="polite"></ul>
+  <p id="empty" hidden>Your fridge is empty. Tap <strong>+ Add</strong> to put something in.</p>
+  <p id="drag-hint" class="hint" hidden>Tip: press and hold an item, then drag it to another shelf.</p>
 
-  <div id="empty" hidden>
-    <p class="empty-big">Your fridge is empty</p>
-    <p>Tap <strong>+ Add</strong> to snap your leftovers.</p>
-  </div>
+  <!-- An open fridge: shelves inside, racks on the door. Racks are filled by
+       app.js from each item's `shelf`. -->
+  <section id="fridge" aria-label="Fridge">
+    <div class="cabinet">
+      <div class="rack shelf" data-shelf="top"><h2 class="rack-label">Top shelf</h2><ul class="rack-items"></ul></div>
+      <div class="rack shelf" data-shelf="middle"><h2 class="rack-label">Middle shelf</h2><ul class="rack-items"></ul></div>
+      <div class="rack shelf" data-shelf="bottom"><h2 class="rack-label">Bottom shelf</h2><ul class="rack-items"></ul></div>
+      <div class="crisper" aria-hidden="true"><span></span><span></span></div>
+    </div>
+    <div class="door">
+      <div class="rack door-rack" data-shelf="door"><h2 class="rack-label">Door</h2><ul class="rack-items"></ul></div>
+    </div>
+  </section>
 </main>
 
-<button id="add" type="button" aria-label="Add leftovers">
+<button id="add" type="button" aria-label="Add an item">
   <span aria-hidden="true">+</span> Add
 </button>
 
-<!-- Opens the rear camera on phones; a file picker elsewhere. -->
+<!-- Two pickers: `capture` opens the rear camera, the other the photo gallery. -->
 <input id="camera" type="file" accept="image/*" capture="environment" hidden>
+<input id="gallery" type="file" accept="image/*" hidden>
 
 <dialog id="add-sheet" class="sheet" aria-labelledby="add-title">
   <form method="dialog" id="add-form">
-    <h2 id="add-title">New leftovers</h2>
-    <button type="button" id="add-photo" class="photo-slot">
+    <h2 id="add-title">Put in the fridge</h2>
+    <div class="photo-slot">
       <img id="add-preview" alt="" hidden>
-      <span id="add-photo-hint">Tap to take a photo</span>
-    </button>
+      <div id="photo-buttons" class="photo-buttons">
+        <button type="button" id="pick-camera" class="photo-btn"><span aria-hidden="true">📷</span> Take photo</button>
+        <button type="button" id="pick-gallery" class="photo-btn"><span aria-hidden="true">🖼️</span> Choose from gallery</button>
+      </div>
+      <button type="button" id="photo-change" class="photo-change" hidden>Change photo</button>
+    </div>
+    <fieldset class="field">
+      <legend>What kind?</legend>
+      <div class="chips" id="add-category"></div>
+    </fieldset>
     <label class="field">
-      <span>What is it? <em>(optional)</em></span>
-      <input id="add-note" type="text" maxlength="60" placeholder="Pasta from Sunday" autocomplete="off" enterkeyhint="done">
+      <span>Name <em>(optional)</em></span>
+      <input id="add-note" type="text" maxlength="60" autocomplete="off" enterkeyhint="done">
     </label>
+    <fieldset class="field">
+      <legend>Which shelf?</legend>
+      <div class="chips" id="add-shelf"></div>
+    </fieldset>
     <fieldset class="field">
       <legend>Eat within</legend>
       <div class="chips" id="add-chips"></div>
     </fieldset>
-    <div class="sheet-actions">
+    <div class="sheet-actions sticky">
       <button type="submit" class="btn btn-primary btn-big">Save</button>
       <button type="button" class="btn btn-quiet" data-close>Cancel</button>
     </div>
@@ -73,6 +96,7 @@
 <dialog id="item-sheet" class="sheet" aria-labelledby="item-note">
   <img id="item-photo" alt="">
   <h2 id="item-note"></h2>
+  <p id="item-where"></p>
   <p id="item-when"></p>
   <div id="item-date" hidden>
     <fieldset class="field">
@@ -80,9 +104,18 @@
       <div class="chips" id="item-chips"></div>
     </fieldset>
   </div>
+  <div id="item-move" hidden>
+    <fieldset class="field">
+      <legend>Move to</legend>
+      <div class="chips" id="item-shelf"></div>
+    </fieldset>
+  </div>
   <div class="sheet-actions">
     <button type="button" id="item-done" class="btn btn-primary btn-big">Eaten or thrown away</button>
-    <button type="button" id="item-change" class="btn btn-secondary">Change date</button>
+    <div class="row">
+      <button type="button" id="item-change" class="btn btn-secondary">Change date</button>
+      <button type="button" id="item-relocate" class="btn btn-secondary">Move shelf</button>
+    </div>
     <button type="button" class="btn btn-quiet" data-close>Close</button>
   </div>
 </dialog>
