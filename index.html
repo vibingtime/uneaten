@@ -63,6 +63,7 @@
       <span class="door-grip" aria-hidden="true"></span>
       <span class="magnet"><span id="door-count"></span><small>Tap to open</small></span>
     </button>
+    <button type="button" id="sound-btn" class="sound-btn"><span aria-hidden="true">🔔</span> Door sound</button>
     <div class="cabinet">
       <button type="button" id="light" class="light" aria-label="Fridge light" aria-pressed="false"><span></span></button>
       <div class="rack shelf" data-shelf="top"><h2 class="rack-label">Top shelf</h2><ul class="rack-items"></ul></div>
@@ -197,6 +198,20 @@
     <button type="button" class="btn btn-quiet" data-close>Close</button>
   </div>
 </dialog>
+
+<dialog id="sound-sheet" class="sheet" aria-labelledby="sound-title">
+  <h2 id="sound-title">Door sound</h2>
+  <p class="sheet-help">What plays when you open the fridge door.</p>
+  <div class="chips sound-choices" id="sound-choices"></div>
+  <p id="sound-file" class="sound-file" hidden></p>
+  <button type="button" id="sound-pick" class="btn btn-secondary" hidden>Choose a sound file</button>
+  <p class="sheet-help small">Your own sound stays on this phone only; it is never uploaded.</p>
+  <div class="sheet-actions">
+    <button type="button" id="sound-play" class="btn btn-secondary">▶ Play</button>
+    <button type="button" class="btn btn-primary btn-big" data-close>Done</button>
+  </div>
+</dialog>
+<input id="sound-input" type="file" accept="audio/*" hidden>
 
 <dialog id="ios-sheet" class="sheet" aria-labelledby="ios-title">
   <h2 id="ios-title">Get reminders on iPhone</h2>

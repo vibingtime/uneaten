@@ -712,3 +712,31 @@ input:focus-visible, button:focus-visible { outline: 3px solid var(--brand); out
 
 .counter { float: right; font-weight: 600; color: var(--muted); }
 .counter[hidden] { display: none; }
+
+/* ---------- door sound ---------- */
+
+/* Sits on the closed door, under the note; hidden once the door is open. */
+.sound-btn {
+  position: absolute;
+  left: 50%;
+  bottom: 18px;
+  z-index: 4;
+  min-height: 48px;
+  padding: 0 18px;
+  transform: translateX(-50%);
+  border: 0;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.8);
+  color: #2b3a41;
+  font-size: 16px;
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.18);
+  transition: opacity 0.2s;
+}
+#fridge:not(.closed) .sound-btn { opacity: 0; pointer-events: none; }
+.sheet-help { margin: 0 0 14px; color: var(--muted); }
+.sheet-help.small { font-size: 15px; margin-top: 14px; }
+.sound-choices { flex-direction: column; align-items: stretch; }
+.sound-choices .chip { text-align: left; }
+.sound-file { margin: 12px 0 8px; font-weight: 700; overflow-wrap: anywhere; }
+.sound-file[hidden], #sound-pick[hidden], #sound-play[hidden] { display: none; }
