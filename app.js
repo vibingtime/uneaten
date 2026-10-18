@@ -328,8 +328,12 @@ $('add').addEventListener('click', () => {
 // The camera and gallery pickers are shared by the add sheet and the item
 // screen; `photoTarget` says who gets the picture.
 let photoTarget = null;
+// The camera or gallery opening sends the app to the background; coming back
+// from that is not "opening the app again", so the door stays as it was.
+let pickingPhoto = false;
 function pickPhoto(input, onPhoto) {
   photoTarget = onPhoto;
+  pickingPhoto = true;
   input.click();
 }
 
@@ -338,6 +342,10 @@ $('pick-gallery').addEventListener('click', () => pickPhoto($('gallery'), setPho
 $('photo-change').addEventListener('click', () => setPhoto(null));
 
 for (const input of [$('camera'), $('gallery')]) {
+  // If the picker never left the app, don't let the flag outlive it.
+  const done = () => setTimeout(() => (pickingPhoto = false), 1500);
+  input.addEventListener('cancel', done);
+  input.addEventListener('change', done);
   input.addEventListener('change', async () => {
     const file = input.files[0];
     input.value = '';
@@ -947,9 +955,13 @@ function keyBytes(b64url) {
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
 
 // Badges are day-relative; refresh when the app comes back to the front, and
-// resync in case an earlier sync failed offline.
+// resync in case an earlier sync failed offline. Coming back to the app also
+// finds the fridge door closed, as on a fresh start.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') load().then(changed);
+  if (document.visibilityState !== 'visible') return;
+  if (pickingPhoto) pickingPhoto = false;
+  else setDoor(false);
+  load().then(changed);
 });
 
 load().then(changed);
