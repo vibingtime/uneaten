@@ -224,11 +224,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 .rack { position: relative; border-radius: 14px; transition: background 0.15s, box-shadow 0.15s; }
 
+/* Shelves share the cabinet's height equally (a shelf still grows to fit its
+   items), and food rests on the glass at the bottom like in a real fridge, so
+   spare height is headroom above the food, never a gap under it. */
 .shelf {
-  flex: 1 0 auto;
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
   padding: 6px 4px 14px;
-  min-height: 96px;
 }
+.shelf .rack-items { margin-top: auto; min-height: 52px; }
 /* A pane of glass with a bright front edge. */
 .shelf::after {
   content: "";
